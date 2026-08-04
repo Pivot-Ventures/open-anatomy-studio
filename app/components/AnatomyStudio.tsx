@@ -15,8 +15,10 @@ import {
   Keyboard,
   MagnifyingGlass,
   Moon,
+  Minus,
   Pause,
   Play,
+  Plus,
   Scissors,
   Sun,
   Tag,
@@ -32,6 +34,10 @@ import {
   type Language,
 } from "../lib/anatomy";
 import { copy } from "../lib/copy";
+import {
+  heartGuidedLesson,
+  type LearningActivity,
+} from "../lib/learning";
 
 type Theme = "dark" | "light";
 
@@ -90,12 +96,37 @@ export function AnatomyStudio() {
   const [quizOpen, setQuizOpen] = useState(false);
   const [answer, setAnswer] = useState<number | null>(null);
   const [checked, setChecked] = useState(false);
+  const [completedActivityIds, setCompletedActivityIds] = useState<string[]>([]);
 
   const activeOrgan = organById[activeId] ?? organs[0];
   const ui = copy[lang];
   const selectedHotspot =
     activeOrgan.hotspots.find((hotspot) => hotspot.id === selectedHotspotId) ??
     activeOrgan.hotspots[0];
+  const activeLesson = activeId === heartGuidedLesson.scene.organId
+    ? heartGuidedLesson
+    : null;
+  const lessonCompletedCount = activeLesson
+    ? activeLesson.activities.filter((activity) => completedActivityIds.includes(activity.id)).length
+    : 0;
+  const nextActivityId = activeLesson?.activities.find(
+    (activity) => !completedActivityIds.includes(activity.id),
+  )?.id;
+
+  const completeActivity = useCallback((id: string) => {
+    setCompletedActivityIds((current) => current.includes(id) ? current : [...current, id]);
+  }, []);
+
+  const selectHotspot = useCallback((id: string) => {
+    setSelectedHotspotId(id);
+    setSelectedStructure(null);
+    const locateActivity = heartGuidedLesson.activities.find(
+      (activity) => activity.kind === "locate" && activity.targetHotspotId === id,
+    );
+    if (activeId === heartGuidedLesson.scene.organId && locateActivity) {
+      completeActivity(locateActivity.id);
+    }
+  }, [activeId, completeActivity]);
 
   const selectOrgan = useCallback((id: string) => {
     const nextOrgan = organById[id];
@@ -200,6 +231,37 @@ export function AnatomyStudio() {
   const activeIndex = organs.findIndex((organ) => organ.id === activeId);
   const nextModel = organs[(activeIndex + 1) % organs.length]?.model;
 
+  const updateSectionDepth = (value: number) => {
+    setSectionDepth(value);
+    if (activeId !== heartGuidedLesson.scene.organId || !sectionMode) return;
+    const sectionActivity = heartGuidedLesson.activities.find(
+      (activity) => activity.kind === "section",
+    );
+    if (sectionActivity?.kind === "section" && Math.abs(value) >= sectionActivity.minimumDepth) {
+      completeActivity(sectionActivity.id);
+    }
+  };
+
+  const activateGuidedActivity = (activity: LearningActivity) => {
+    if (activity.kind === "locate") {
+      setShowLabels(true);
+      setSelectedStructure(null);
+      setSelectedHotspotId(null);
+    }
+    if (activity.kind === "section") {
+      setSectionMode(true);
+      setAutoRotate(false);
+    }
+    if (activity.kind === "quiz") {
+      setQuizOpen(true);
+    }
+    if (activity.kind !== "quiz") {
+      window.requestAnimationFrame(() => {
+        document.querySelector(".viewer-panel")?.scrollIntoView({ block: "start" });
+      });
+    }
+  };
+
   return (
     <main className="studio-shell">
       <header className="studio-header">
@@ -222,7 +284,13 @@ export function AnatomyStudio() {
         </nav>
 
         <div className="header-actions">
-          <button className="text-action" type="button" onClick={() => setSourcesOpen(true)}>
+          <button
+            className="text-action"
+            type="button"
+            onClick={() => setSourcesOpen(true)}
+            aria-label={ui.sources}
+            title={ui.sources}
+          >
             <BookOpenText size={17} weight="duotone" />
             <span>{ui.sources}</span>
           </button>
@@ -247,6 +315,12 @@ export function AnatomyStudio() {
           </button>
         </div>
       </header>
+
+      <nav className="mobile-nav" aria-label={ui.mobileNavigation}>
+        <a href="#explorer"><Flask size={18} weight="duotone" /><span>{ui.explore}</span></a>
+        <a href="#library"><BookOpenText size={18} weight="duotone" /><span>{ui.library}</span></a>
+        <a href="#learning"><CheckCircle size={18} weight="duotone" /><span>{ui.progress}</span></a>
+      </nav>
 
       <section className="explorer" id="explorer">
         <aside className="library-panel" id="library" aria-label={ui.library}>
@@ -357,7 +431,6 @@ export function AnatomyStudio() {
           </div>
 
           <div className="viewer-canvas" style={{ "--organ-accent": activeOrgan.accent } as React.CSSProperties}>
-            <div className="viewer-orbit" aria-hidden="true" />
             <AnatomyViewer
               organ={activeOrgan}
               nextModel={nextModel}
@@ -368,12 +441,11 @@ export function AnatomyStudio() {
               sectionDepth={sectionDepth}
               selectedStructure={selectedStructure}
               onSelectStructure={setSelectedStructure}
-              onSelectHotspot={(id) => {
-                setSelectedHotspotId(id);
-                setSelectedStructure(null);
-              }}
+              onSelectHotspot={selectHotspot}
               resetSignal={resetSignal}
               loadingLabel={ui.loading}
+              errorLabel={ui.modelError}
+              webglFallbackLabel={ui.webglFallback}
             />
 
             <div className="viewer-instructions"><Info size={14} /> {ui.dragHint}</div>
@@ -410,18 +482,33 @@ export function AnatomyStudio() {
           </div>
 
           {sectionMode && (
-            <label className="section-slider">
+            <div className="section-slider">
               <span>{ui.sectionDepth}</span>
+              <button
+                type="button"
+                onClick={() => updateSectionDepth(Math.max(-1, Number((sectionDepth - 0.1).toFixed(2))))}
+                aria-label={ui.sectionDecrease}
+              >
+                <Minus size={14} />
+              </button>
               <input
                 type="range"
                 min="-1"
                 max="1"
                 step="0.02"
                 value={sectionDepth}
-                onChange={(event) => setSectionDepth(Number(event.target.value))}
+                aria-label={ui.sectionDepth}
+                onInput={(event) => updateSectionDepth(Number(event.currentTarget.value))}
               />
+              <button
+                type="button"
+                onClick={() => updateSectionDepth(Math.min(1, Number((sectionDepth + 0.1).toFixed(2))))}
+                aria-label={ui.sectionIncrease}
+              >
+                <Plus size={14} />
+              </button>
               <output>{sectionDepth.toFixed(2)}</output>
-            </label>
+            </div>
           )}
         </section>
 
@@ -429,14 +516,76 @@ export function AnatomyStudio() {
           <div className="info-status">
             <span style={{ background: activeOrgan.accent }} aria-hidden="true" />
             {localize(systems[activeOrgan.system], lang)}
-            <small>HRA · CC BY 4.0</small>
+            <small>{activeOrgan.modelSource === "local" ? ui.localModel : "HRA · CC BY 4.0"}</small>
           </div>
 
           <div className="info-intro">
             <small>{ui.overview}</small>
             <p>{localize(activeOrgan.summary, lang)}</p>
             <blockquote>{localize(activeOrgan.role, lang)}</blockquote>
+            {activeOrgan.modelScope && (
+              <div className="model-scope-note">
+                <strong>{ui.modelScope}</strong>
+                <span>{localize(activeOrgan.modelScope, lang)}</span>
+              </div>
+            )}
           </div>
+
+          {activeLesson && (
+            <section className="guided-lesson" aria-labelledby="guided-lesson-title">
+              <div className="section-label">
+                <span>{ui.guidedLesson}</span>
+                <BookOpenText size={15} />
+              </div>
+              <div className="guided-lesson-heading">
+                <div>
+                  <small>{ui.guidedLessonKicker}</small>
+                  <h3 id="guided-lesson-title">{localize(activeLesson.title, lang)}</h3>
+                </div>
+                <output aria-live="polite">
+                  {lessonCompletedCount}/{activeLesson.activities.length}
+                </output>
+              </div>
+              <p>{localize(activeLesson.objective, lang)}</p>
+              <div
+                className="guided-progress"
+                role="progressbar"
+                aria-label={ui.lessonProgress}
+                aria-valuemin={0}
+                aria-valuemax={activeLesson.activities.length}
+                aria-valuenow={lessonCompletedCount}
+              >
+                <span style={{ width: `${(lessonCompletedCount / activeLesson.activities.length) * 100}%` }} />
+              </div>
+              <ol className="guided-steps">
+                {activeLesson.activities.map((activity, index) => {
+                  const done = completedActivityIds.includes(activity.id);
+                  const current = nextActivityId === activity.id;
+                  return (
+                    <li key={activity.id} className={done ? "done" : current ? "current" : ""}>
+                      <span className="guided-step-index" aria-hidden="true">
+                        {done ? <CheckCircle size={15} weight="fill" /> : index + 1}
+                      </span>
+                      <div>
+                        <strong>{localize(activity.title, lang)}</strong>
+                        <p>{localize(done ? activity.success : activity.instruction, lang)}</p>
+                      </div>
+                      {!done && (
+                        <button type="button" onClick={() => activateGuidedActivity(activity)}>
+                          {ui.lessonAction}
+                        </button>
+                      )}
+                    </li>
+                  );
+                })}
+              </ol>
+              {lessonCompletedCount === activeLesson.activities.length && (
+                <p className="guided-complete" role="status">
+                  <CheckCircle size={16} weight="fill" /> {ui.lessonComplete}
+                </p>
+              )}
+            </section>
+          )}
 
           <section className="focus-card">
             <div className="section-label">
@@ -462,10 +611,7 @@ export function AnatomyStudio() {
                   key={hotspot.id}
                   type="button"
                   className={!selectedStructure && selectedHotspotId === hotspot.id ? "active" : ""}
-                  onClick={() => {
-                    setSelectedStructure(null);
-                    setSelectedHotspotId(hotspot.id);
-                  }}
+                  onClick={() => selectHotspot(hotspot.id)}
                   aria-label={localize(hotspot.name, lang)}
                 >
                   {index + 1}
@@ -480,7 +626,24 @@ export function AnatomyStudio() {
               {activeOrgan.facts.map((fact) => (
                 <div key={fact.label.en}>
                   <dt>{localize(fact.label, lang)}</dt>
-                  <dd>{localize(fact.value, lang)}</dd>
+                  <dd>
+                    <span>{localize(fact.value, lang)}</span>
+                    {fact.sourceIds?.map((sourceId) => (
+                      <button
+                        key={sourceId}
+                        type="button"
+                        className="fact-source"
+                        onClick={() => setSourcesOpen(true)}
+                        aria-label={`${ui.factSource}: ${sourceId}`}
+                        title={ui.factSource}
+                      >
+                        {sourceId === "openstax" ? "OpenStax" : sourceId}
+                      </button>
+                    ))}
+                    {fact.reviewStatus === "draft" && (
+                      <small className="fact-review-status">{ui.factDraft}</small>
+                    )}
+                  </dd>
                 </div>
               ))}
             </dl>
@@ -596,7 +759,20 @@ export function AnatomyStudio() {
             )}
             <div className="quiz-actions">
               {!checked ? (
-                <button type="button" className="primary" disabled={answer === null} onClick={() => setChecked(true)}>{ui.check}</button>
+                <button
+                  type="button"
+                  className="primary"
+                  disabled={answer === null}
+                  onClick={() => {
+                    setChecked(true);
+                    if (activeId === heartGuidedLesson.scene.organId && answer === activeOrgan.quiz.answer) {
+                      const quizActivity = heartGuidedLesson.activities.find((activity) => activity.kind === "quiz");
+                      if (quizActivity) completeActivity(quizActivity.id);
+                    }
+                  }}
+                >
+                  {ui.check}
+                </button>
               ) : (
                 <button
                   type="button"
