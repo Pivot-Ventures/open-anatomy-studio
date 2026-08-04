@@ -26,6 +26,9 @@ export type Hotspot = {
 export type AnatomyFact = {
   label: LocalizedText;
   value: LocalizedText;
+  sourceIds?: string[];
+  reviewStatus?: "draft" | "reviewed";
+  lastReviewed?: string;
 };
 
 export type AnatomyQuiz = {
@@ -40,10 +43,13 @@ export type Organ = {
   name: LocalizedText;
   latin: string;
   system: BodySystem;
-  model: string;
+  model?: string;
+  modelKind?: "gltf" | "skin-patch";
+  modelSource?: "hra" | "local";
   accent: string;
   summary: LocalizedText;
   role: LocalizedText;
+  modelScope?: LocalizedText;
   facts: AnatomyFact[];
   functions: LocalizedText[];
   hotspots: Hotspot[];
@@ -78,10 +84,10 @@ export const organs: Organ[] = [
     ),
     role: t("维持全身组织的氧气、营养与代谢废物运输。", "Keeps oxygen, nutrients, and metabolic waste moving through the body."),
     facts: [
-      { label: t("大小", "Size"), value: t("约一个拳头大小", "About the size of a fist") },
-      { label: t("重量", "Weight"), value: t("成人约 250 到 350 克", "About 250 to 350 g in adults") },
-      { label: t("位置", "Location"), value: t("纵隔内，胸骨后方", "In the mediastinum, behind the sternum") },
-      { label: t("静息输出", "Resting output"), value: t("每分钟约 5 升血液", "Roughly 5 L of blood per minute") },
+      { label: t("大小", "Size"), value: t("约一个拳头大小", "About the size of a fist"), sourceIds: ["openstax"], reviewStatus: "draft" },
+      { label: t("重量", "Weight"), value: t("成人约 250 到 350 克", "About 250 to 350 g in adults"), sourceIds: ["openstax"], reviewStatus: "draft" },
+      { label: t("位置", "Location"), value: t("纵隔内，胸骨后方", "In the mediastinum, behind the sternum"), sourceIds: ["openstax"], reviewStatus: "draft" },
+      { label: t("静息输出", "Resting output"), value: t("每分钟约 5 升血液", "Roughly 5 L of blood per minute"), sourceIds: ["openstax"], reviewStatus: "draft" },
     ],
     functions: [
       t("右心将低氧血泵向肺部", "The right heart pumps deoxygenated blood to the lungs"),
@@ -197,6 +203,41 @@ export const organs: Organ[] = [
     },
   },
   {
+    id: "gallbladder",
+    name: t("胆囊", "Gallbladder"),
+    latin: "Vesica biliaris",
+    system: "digestive",
+    model: "/models/gallbladder.glb",
+    accent: "#74a96f",
+    summary: t(
+      "位于肝脏下方的梨形肌性囊，储存并浓缩肝脏产生的胆汁，在消化需要时将胆汁排入十二指肠。",
+      "A pear shaped muscular sac below the liver that stores and concentrates bile, then releases it into the duodenum when digestion requires it.",
+    ),
+    role: t("调节胆汁进入小肠的时机，帮助脂质的消化与吸收。", "Times the delivery of bile to the small intestine to support lipid digestion and absorption."),
+    facts: [
+      { label: t("长度", "Length"), value: t("成人约 8 到 10 厘米", "About 8 to 10 cm in adults") },
+      { label: t("位置", "Location"), value: t("肝右叶下方的胆囊窝", "In a fossa beneath the right lobe of the liver") },
+      { label: t("主要分区", "Main regions"), value: t("底、体与颈", "Fundus, body, and neck") },
+      { label: t("连接管道", "Connecting duct"), value: t("胆囊管", "Cystic duct") },
+    ],
+    functions: [
+      t("在两餐之间储存肝脏持续产生的胆汁", "Stores bile continuously produced by the liver between meals"),
+      t("通过吸收水和离子浓缩胆汁", "Concentrates bile by absorbing water and ions"),
+      t("收缩后经胆囊管和胆总管释放胆汁", "Contracts to release bile through the cystic and common bile ducts"),
+    ],
+    hotspots: [
+      { id: "fundus", name: t("胆囊底", "Fundus"), detail: t("胆囊最宽、呈圆钝形的末端。", "The broad rounded end of the gallbladder."), position: [0, -0.56, 0.18] },
+      { id: "body", name: t("胆囊体", "Body"), detail: t("储存和浓缩胆汁的主要区域。", "The main region that stores and concentrates bile."), position: [0.08, 0.02, 0.24] },
+      { id: "neck", name: t("胆囊颈", "Neck"), detail: t("逐渐变窄并延续为胆囊管。", "Narrows and continues into the cystic duct."), position: [-0.06, 0.58, 0.14] },
+    ],
+    quiz: {
+      question: t("胆囊的主要功能是什么？", "What is the primary function of the gallbladder?"),
+      options: [t("产生胆汁", "Produce bile"), t("储存并浓缩胆汁", "Store and concentrate bile"), t("产生胰岛素", "Produce insulin"), t("吸收氧气", "Absorb oxygen")],
+      answer: 1,
+      explanation: t("胆汁由肝脏产生，胆囊负责储存、浓缩并按需释放。", "Bile is produced by the liver; the gallbladder stores, concentrates, and releases it as needed."),
+    },
+  },
+  {
     id: "kidney",
     name: t("肾", "Kidneys"),
     latin: "Renes",
@@ -293,6 +334,42 @@ export const organs: Organ[] = [
     },
   },
   {
+    id: "small_intestine",
+    name: t("回肠", "Ileum"),
+    latin: "Ileum",
+    system: "digestive",
+    model: "/models/small_intestine.glb",
+    accent: "#e39a93",
+    summary: t(
+      "小肠的最后一段，连接空肠与盲肠，继续消化与吸收，并在末端重点回收胆汁盐和维生素 B12。",
+      "The final segment of the small intestine, linking the jejunum to the cecum while continuing digestion and absorption, including terminal uptake of bile salts and vitamin B12.",
+    ),
+    role: t("完成小肠末段的营养吸收，并把肠内容物送向大肠。", "Completes absorption in the distal small bowel and passes intestinal contents toward the large intestine."),
+    modelScope: t("本模型仅呈现回肠，不包含十二指肠与空肠。", "This model represents the ileum only; the duodenum and jejunum are not included."),
+    facts: [
+      { label: t("所属", "Part of"), value: t("小肠末段", "Final segment of the small intestine") },
+      { label: t("长度", "Length"), value: t("成人在体约 1.8 米", "About 1.8 m in a living adult") },
+      { label: t("近端连接", "Proximal connection"), value: t("空肠", "Jejunum") },
+      { label: t("远端连接", "Distal connection"), value: t("回盲瓣与盲肠", "Ileocecal valve and cecum") },
+    ],
+    functions: [
+      t("吸收胆汁盐和与内因子结合的维生素 B12", "Absorbs bile salts and vitamin B12 bound to intrinsic factor"),
+      t("继续吸收水、电解质和消化后的营养物质", "Continues absorbing water, electrolytes, and digested nutrients"),
+      t("淋巴组织参与监测肠腔内的抗原", "Lymphoid tissue helps monitor antigens in the intestinal lumen"),
+    ],
+    hotspots: [
+      { id: "loops", name: t("回肠袢", "Ileal loops"), detail: t("盘曲的肠管增加了腹腔内可容纳的长度。", "Coiled intestinal loops accommodate substantial length within the abdomen."), position: [0, 0.16, 0.38] },
+      { id: "mesenteric", name: t("系膜缘", "Mesenteric border"), detail: t("肠系膜在此附着，并携带血管、神经和淋巴管。", "The mesentery attaches here and carries vessels, nerves, and lymphatics."), position: [-0.42, -0.08, 0.18] },
+      { id: "terminal", name: t("末端回肠", "Terminal ileum"), detail: t("在回盲瓣处汇入盲肠。", "Joins the cecum at the ileocecal valve."), position: [0.4, -0.44, 0.22] },
+    ],
+    quiz: {
+      question: t("回肠通过哪个结构与盲肠相接？", "Which structure connects the ileum to the cecum?"),
+      options: [t("幽门", "Pylorus"), t("回盲瓣", "Ileocecal valve"), t("贲门", "Cardia"), t("胆囊管", "Cystic duct")],
+      answer: 1,
+      explanation: t("末端回肠在回盲瓣处进入盲肠。", "The terminal ileum enters the cecum at the ileocecal valve."),
+    },
+  },
+  {
     id: "intestine",
     name: t("大肠", "Large intestine"),
     latin: "Intestinum crassum",
@@ -357,14 +434,52 @@ export const organs: Organ[] = [
     },
   },
   {
+    id: "thymus",
+    name: t("胸腺", "Thymus"),
+    latin: "Thymus",
+    system: "lymphatic",
+    model: "/models/thymus.glb",
+    accent: "#d3b887",
+    summary: t(
+      "位于胸骨后方、心脏上方的原发淋巴器官，为未成熟 T 细胞提供发育、选择和建立自身耐受的微环境。",
+      "A primary lymphoid organ behind the sternum and above the heart that provides the environment for immature T cells to develop, undergo selection, and establish self tolerance.",
+    ),
+    role: t("培养能够识别外来抗原且不过度攻击自身组织的成熟 T 细胞。", "Produces mature T cells that can recognize foreign antigens without strongly attacking the body's own tissues."),
+    modelScope: t("本模型仅呈现胸腺左叶，未包含右叶。", "This model represents the left thymic lobe only; the right lobe is not included."),
+    facts: [
+      { label: t("位置", "Location"), value: t("前上纵隔，胸骨后方", "Anterior superior mediastinum, behind the sternum") },
+      { label: t("形态", "Shape"), value: t("通常由左右两叶组成", "Usually composed of right and left lobes") },
+      { label: t("显微分区", "Microscopic regions"), value: t("皮质与髓质", "Cortex and medulla") },
+      { label: t("年龄变化", "Age change"), value: t("青春期后逐步退化并被脂肪替代", "Progressively involutes and is replaced by fat after puberty") },
+    ],
+    functions: [
+      t("支持来自骨髓的 T 细胞前体成熟", "Supports maturation of T cell precursors arriving from bone marrow"),
+      t("通过阳性选择保留能够识别自身 MHC 的细胞", "Uses positive selection to retain cells that recognize self MHC"),
+      t("通过阴性选择清除强烈识别自身抗原的细胞", "Uses negative selection to remove cells that strongly recognize self antigens"),
+    ],
+    hotspots: [
+      { id: "superior", name: t("左叶上极", "Superior pole"), detail: t("胸腺左叶向颈部方向延伸的上端。", "The upper end of the left thymic lobe extending toward the neck."), position: [0, 0.58, 0.16] },
+      { id: "lobe", name: t("胸腺左叶", "Left thymic lobe"), detail: t("由许多具有皮质和髓质的胸腺小叶构成。", "Built from many thymic lobules containing cortex and medulla."), position: [0.08, 0.04, 0.26] },
+      { id: "inferior", name: t("左叶下极", "Inferior pole"), detail: t("胸腺左叶靠近心包的下端。", "The lower end of the left thymic lobe near the pericardium."), position: [-0.04, -0.56, 0.16] },
+    ],
+    quiz: {
+      question: t("未成熟 T 细胞主要在哪里完成选择和成熟？", "Where do immature T cells primarily undergo selection and maturation?"),
+      options: [t("胸腺", "Thymus"), t("胆囊", "Gallbladder"), t("胰腺", "Pancreas"), t("肾脏", "Kidney")],
+      answer: 0,
+      explanation: t("胸腺的皮质与髓质提供 T 细胞发育和选择所需的微环境。", "The thymic cortex and medulla provide the environment required for T cell development and selection."),
+    },
+  },
+  {
     id: "skin",
     name: t("皮肤", "Skin"),
     latin: "Cutis",
     system: "integumentary",
-    model: "/models/skin.glb",
+    modelKind: "skin-patch",
+    modelSource: "local",
     accent: "#d5a07d",
     summary: t("覆盖身体表面的多层器官，形成屏障并参与感觉、体温调节、免疫防御和维生素 D 合成。", "A layered organ covering the body surface, forming a barrier and contributing to sensation, temperature control, immune defense, and vitamin D synthesis."),
     role: t("在体内与外界之间建立可调节的保护界面。", "Creates a regulated protective interface between the body and its environment."),
+    modelScope: t("本模型为代码生成的局部皮肤切面，不包含整个人体或任何生殖器结构。", "This code generated model is a local skin cross section and contains no whole body or genital anatomy."),
     facts: [
       { label: t("主要层次", "Main layers"), value: t("表皮与真皮", "Epidermis and dermis") },
       { label: t("皮下组织", "Subcutaneous tissue"), value: t("位于皮肤下方，不属于皮肤本体", "Lies below the skin and is not part of the skin itself") },
@@ -377,9 +492,9 @@ export const organs: Organ[] = [
       t("血流和汗液帮助调节体温", "Blood flow and sweating help regulate body temperature"),
     ],
     hotspots: [
-      { id: "epidermis", name: t("表皮", "Epidermis"), detail: t("无血管的外层上皮，构成主要屏障。", "The avascular outer epithelium that forms the main barrier."), position: [0, 0.36, 0.15] },
-      { id: "dermis", name: t("真皮", "Dermis"), detail: t("富含结缔组织，并容纳血管、神经和附属器。", "Connective tissue rich layer containing vessels, nerves, and appendages."), position: [0, 0.02, 0.15] },
-      { id: "subcutis", name: t("皮下组织", "Subcutaneous tissue"), detail: t("主要由疏松结缔组织和脂肪构成。", "Composed mainly of loose connective tissue and adipose tissue."), position: [0, -0.36, 0.15] },
+      { id: "epidermis", name: t("表皮", "Epidermis"), detail: t("无血管的外层上皮，构成主要屏障。", "The avascular outer epithelium that forms the main barrier."), position: [-0.7, 0.7, 0.82] },
+      { id: "dermis", name: t("真皮", "Dermis"), detail: t("富含结缔组织，并容纳血管、神经和附属器。", "Connective tissue rich layer containing vessels, nerves, and appendages."), position: [0.5, 0.2, 0.82] },
+      { id: "subcutis", name: t("皮下组织", "Subcutaneous tissue"), detail: t("主要由疏松结缔组织和脂肪构成。", "Composed mainly of loose connective tissue and adipose tissue."), position: [-0.62, -0.48, 0.82] },
     ],
     quiz: {
       question: t("皮肤最外层的主要名称是什么？", "What is the name of the outermost main layer of skin?"),
@@ -396,7 +511,7 @@ export const anatomySources = [
   {
     id: "hra",
     title: t("Human Reference Atlas 3D 参考对象库", "Human Reference Atlas 3D Reference Object Library"),
-    detail: t("本项目 3D 模型来源。模型以 CC BY 4.0 发布，并由 HuBMAP 人体参考图谱项目维护。", "Source of the 3D models. The objects are released under CC BY 4.0 and maintained by the HuBMAP Human Reference Atlas project."),
+    detail: t("本项目 12 个二进制器官模型的来源。模型以 CC BY 4.0 发布，并由 HuBMAP 人体参考图谱项目维护。", "Source of the 12 binary organ models. The objects are released under CC BY 4.0 and maintained by the HuBMAP Human Reference Atlas project."),
     url: "https://humanatlas.io/3d-reference-library",
   },
   {

@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { readFileSync, statSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 
 const files = execFileSync(
   "git",
@@ -8,6 +8,7 @@ const files = execFileSync(
 )
   .split("\0")
   .filter(Boolean);
+const existingFiles = files.filter((file) => existsSync(file));
 
 const violations = [];
 const forbiddenPaths = [
@@ -25,7 +26,7 @@ const secretPatterns = [
   /\/Users\/[A-Za-z0-9._-]+\/project\//,
 ];
 
-for (const file of files) {
+for (const file of existingFiles) {
   if (forbiddenPaths.some((pattern) => pattern.test(file))) {
     violations.push(`${file}: forbidden local or secret-bearing path`);
     continue;
@@ -47,7 +48,7 @@ for (const file of files) {
   }
 }
 
-if (!files.includes("THIRD_PARTY_ASSETS.md")) {
+if (!existingFiles.includes("THIRD_PARTY_ASSETS.md")) {
   violations.push("THIRD_PARTY_ASSETS.md: required when redistributing 3D models");
 }
 
@@ -56,4 +57,4 @@ if (violations.length) {
   process.exit(1);
 }
 
-console.log(`Repository boundary check passed for ${files.length} files.`);
+console.log(`Repository boundary check passed for ${existingFiles.length} files.`);
