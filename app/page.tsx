@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import { AnatomyStudio } from "./components/AnatomyStudio";
 
+export const dynamic = "force-static";
+
 export const metadata: Metadata = {
-  title: "Open Anatomy Studio | 开放解剖工作室",
-  description: "A bilingual, source-aware 3D anatomy explorer built with open Human Reference Atlas models.",
+  title: { absolute: "Human Atlas Organ Studio" },
+  description: "A source-aware 3D organ explorer built with open Human Reference Atlas models, with named structures and descriptive terms for every part.",
   other: {
     "codex-preview": "development",
   },

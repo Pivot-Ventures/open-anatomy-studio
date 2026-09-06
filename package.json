@@ -1,6 +1,6 @@
 {
-  "name": "open-anatomy-studio",
-  "version": "0.1.0",
+  "name": "human-atlas-organ-studio",
+  "version": "0.2.0",
   "private": true,
   "engines": {
     "node": ">=22.13.0"
@@ -13,7 +13,10 @@
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "typecheck": "tsc --noEmit",
     "check:repo": "node scripts/check-repo-boundaries.mjs",
-    "check": "npm run typecheck && npm run lint && npm run test && npm run check:repo"
+    "check": "npm run typecheck && npm run lint && npm run test && npm run check:repo",
+    "build:easi": "node scripts/build-easi.mjs",
+    "deploy:easi": "bash scripts/deploy-easi.sh",
+    "models:slim": "node scripts/slim-model.mjs"
   },
   "dependencies": {
     "@phosphor-icons/react": "^2.1.10",

@@ -1,111 +1,55 @@
-# Open Anatomy Studio 视觉系统规格
+# Visual system
 
-> Visual System v1 — Structured Learning + Editorial Clarity + Focused 3D Workspace
+> Visual System v1.2: structured learning, editorial clarity, focused 3D workspace
 
-- 状态：v1.1,已实施并完成自动检查与桌面/移动端浏览器验收；完整 WCAG 人工审计仍待进行
-- 日期:2026-08-04
-- 上游文档:`docs/DESIGN_STYLE_DECISION.md`(产品战略与风格方向)
-- 本文档职责:把风格方向翻译成可直接写进 CSS 的令牌(token)、规则与验收指标
+- Status: implemented in `app/globals.css`; automated checks and desktop and mobile browser acceptance done; a full manual WCAG audit is still pending.
+- Upstream document: `docs/DESIGN_STYLE_DECISION.md`.
+- Purpose: translate the style direction into tokens, rules, and acceptance criteria that can be written straight into CSS.
 
-## 1. 方向定义
+## 1. Direction
 
-| 层 | 来源风格 | 职责 |
+| Layer | Source style | Responsibility |
 | --- | --- | --- |
-| 结构 | 05 Soft Docs | 信息分组、学习反馈、阅读节奏 |
-| 层级 | 02 Swiss Editorial | 标题层级、编号、网格纪律 |
-| 舞台 | 暗色 Focused Workspace | 3D 工作区保持暗场、安静、高专注 |
+| Structure | Soft documentation | Information grouping, learning feedback, reading rhythm |
+| Hierarchy | Swiss editorial | Heading levels, numbering, grid discipline |
+| Stage | Dark focused workspace | The 3D stage stays dark, quiet, and high-focus |
 
-不使用:Neubrutalism 进入学习工作区;Dev Terminal 作为全局外壳;虚构 XP / 宝石 / 吉祥物导航。
+Not used: neubrutalism inside the learning workspace, a terminal look as the global shell, fictional XP, gems, or mascots.
 
-## 2. 色彩
+## 2. Colour
 
-### 2.1 品牌与语义色
+- Brand accent: teal `--accent` (dark `#75d5d1`, light `#147d79`), used only for interaction and system feedback.
+- Organ accent: `--organ-accent`, at most one per organ page, for recognition only.
+- Scientific colours are reserved for the model: artery red, vein blue, and tissue tones belong to the specimen, never to the interface.
+- Feedback colours `--danger` and `--success` are used only for quizzes and status.
+- Surfaces: `--bg`, `--surface`, `--surface-2`, `--surface-3`, `--panel`, with `--line` and `--line-strong` for borders. Both themes define every token.
 
-- 品牌强调色:青绿 `--accent`(暗 `#75d5d1` / 亮 `#147d79`),只用于交互与系统反馈。
-- 学科/器官强调色:`--organ-accent`,每个课程页面最多一个,只辅助识别。
-- 科学语义色不可被界面装饰占用:动脉红、静脉蓝、组织色只属于模型本体。
-- 反馈色:`--danger` / `--success` 仅用于测验与状态。
+## 3. Type
 
-### 2.2 表面层级(elevation)
-
-以"背景 → 浮层 → 强调"三层模型取代单纯发丝线分隔:
-
-| 令牌 | 用途 |
-| --- | --- |
-| `--bg` | 页面背景 |
-| `--surface` / `--surface-2` / `--surface-3` | 递进浮层 |
-| `--line` / `--line-strong` | 分隔线,仅作辅助 |
-| `--shadow` / `--shadow-sm` | 抽屉、模态、悬浮控件 |
-
-### 2.3 明暗主题
-
-- 深色模式 = 默认 3D 工作区体验。
-- 明亮模式不是反色:画布区、hotspot、loader、error 等全部使用主题变量,禁止写死深色假设。
-- 新增组件必须同时在两个主题下验收。
-
-## 3. 字号阶梯(强制下限)
-
-原则:**装饰性文字可以小,功能性文字必须可读。**
-
-| 令牌 | 大小 | 用途 |
+| Token | Size | Use |
 | --- | --- | --- |
-| `--fs-micro` | 9px | 纯装饰:坐标、编号著录、图注 |
-| `--fs-label` | 10px | 面板栏目标签(大写、加字距) |
-| `--fs-ui` | 11.5px | 按钮、筛选器、控制条等功能控件 |
-| `--fs-body` | 12.5px | 正文信息、事实表、功能列表 |
-| `--fs-lead` | 17px | 器官引言(衬线) |
+| `--fs-micro` | 9px | Decorative numbering, coordinates, captions |
+| `--fs-label` | 10px | Section labels, uppercase with tracking |
+| `--fs-ui` | 11.5px | Controls |
+| `--fs-body` | 12.5px | Body text |
+| `--fs-lead` | 17px | Lead paragraph, serif |
 
-- 功能性文字不得低于 11.5px;正文不得低于 12.5px。
-- 9–10px 只允许出现在用户无需阅读也能完成任务的纹理性位置。
-- 中英文混排逐页检查:导航不换行、按钮不溢出、布局不跳动。
+Display font is Geist with a system sans fallback; monospace is Geist Mono for numbering, coordinates, and semantic object names.
 
-## 4. 字体
+## 4. Layout
 
-- 界面与正文:Geist Sans + 中文系统字体(PingFang SC / Microsoft YaHei)。
-- 数据、参数、编号、快捷键:Geist Mono。
-- 器官引言保留衬线(Georgia / Songti SC),仅此一处。
-- 不引入装饰性标题字体;层级靠字号、字重和网格。
+- Three-column explorer: library (286px), stage (fluid), notes (382px); collapses to a single column under 720px with a fixed mobile navigation.
+- Panels float on the background with 10px radius (`--r-panel`); controls use 6px (`--r-ctl`).
+- The stage keeps its own dark ground in both themes; labels use `--hotspot-bg` and `--hotspot-text`.
 
-## 5. 圆角与容器
+## 5. Interaction
 
-| 令牌 | 大小 | 用途 |
-| --- | --- | --- |
-| `--r-ctl` | 6px | 按钮、输入框、标签、色块 |
-| `--r-panel` | 10px | 模态、抽屉、卡片 |
+- Every control has hover, focus-visible, and active states using `--line-strong` and `--surface-3`.
+- Selection on the stage is shown with an emissive accent on the structure and a fade on everything else.
+- Reduced motion disables auto rotation and transitions.
 
-- 圆角全站统一,不再出现 0 与任意值混用。
-- 卡片只用于真实的层级、任务或状态分组;普通知识内容用留白与稀疏分隔线。
-- 3D 画布不使用与模型竞争的外发光和复杂渐变。
+## 6. Acceptance
 
-## 6. 图标
-
-- 统一 Phosphor Icons(`@phosphor-icons/react`)。
-- Emoji 不作为功能图标(内容示意除外)。
-- 图表、向量、剖面必须带单位、方向或图例。
-
-## 7. 动效
-
-- 动效只服务三类目的:操作反馈、因果解释、状态变化。
-- 全部动画尊重 `prefers-reduced-motion`(已有全局规则,新增动画不得绕过)。
-- 模态/抽屉:`fade-in` / `slide-in` / `modal-up`,时长 180–260ms。
-
-## 8. 验收清单
-
-视觉改动合入前逐项确认:
-
-- [x] 新增功能性文字 ≥ 11.5px,正文 ≥ 12.5px
-- [ ] 亮暗两主题逐屏截图检查,无写死单色假设
-- [x] 学科色不侵入科学语义色
-- [x] 新增圆角只取 `--r-ctl` / `--r-panel`
-- [x] 无 Emoji 功能图标
-- [x] 新增动效符合第 7 节目的事先说明
-- [x] 中英文切换在 1440px 下无横向溢出或布局跳动
-- [x] 键盘焦点态可见(`:focus-visible` 全局规则)
-
-### 8.1 本轮浏览器证据
-
-- 390 × 844：`document.scrollWidth === document.documentElement.clientWidth === 390`；器官库、3D 工作区和信息栏均保持 370px 内容宽度。
-- 1440 × 900：3D 控制区底部为 879px，完整位于首屏内；页面横向宽度为 1440px。
-- 移动导航仅在 ≤1100px 显示，桌面端为 `display: none`。
-- 心脏导学实测从 0/3 依次完成定位、剖切和测验，最终显示 3/3 与“导学已完成”。
-- 亮色主题使用 `--faint: #5a6d69`；深色主题使用 `--faint: #7b9191`。二者已按相关表面重新校正，但完整 WCAG 人工审计仍未完成。
+- Contrast of body text on all surfaces meets WCAG AA in both themes.
+- Keyboard: J and K change organ, Space pauses rotation, L labels, S section, E explode, Escape closes dialogs.
+- No horizontal scrolling on the page body at any width; wide content scrolls inside its own container.
