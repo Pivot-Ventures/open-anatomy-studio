@@ -13,25 +13,24 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://github.com/HongChao6/open-anatomy-studio"),
+  metadataBase: new URL("https://easi.pivotventures.tech/atlas/organs/"),
   title: {
-    default: "Open Anatomy Studio | 开放解剖工作室",
-    template: "%s | Open Anatomy Studio",
+    default: "Human Atlas Organ Studio",
+    template: "%s | Human Atlas Organ Studio",
   },
-  description: "Explore human organs in 3D with bilingual explanations, learning tools, and auditable sources.",
-  applicationName: "Open Anatomy Studio",
-  authors: [{ name: "HongChao6", url: "https://github.com/HongChao6" }],
-  keywords: ["anatomy", "3D", "education", "HuBMAP", "Human Reference Atlas", "解剖学", "三维学习"],
+  description: "Explore human organs in 3D with named structures, descriptive terms, guided lessons, and auditable sources.",
+  applicationName: "Human Atlas Organ Studio",
+  keywords: ["anatomy", "3D", "education", "HuBMAP", "Human Reference Atlas", "EASI", "NCDC biology"],
   openGraph: {
     type: "website",
-    title: "Open Anatomy Studio",
-    description: "A bilingual, source-aware 3D anatomy learning studio.",
-    images: [{ url: "/og.png", width: 1200, height: 630, alt: "Open Anatomy Studio 3D organ explorer" }],
+    title: "Human Atlas Organ Studio",
+    description: "A source-aware 3D anatomy learning studio for schools.",
+    images: [{ url: "/og.png", width: 1200, height: 630, alt: "Human Atlas Organ Studio 3D organ explorer" }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Open Anatomy Studio",
-    description: "A bilingual, source-aware 3D anatomy learning studio.",
+    title: "Human Atlas Organ Studio",
+    description: "A source-aware 3D anatomy learning studio for schools.",
     images: ["/og.png"],
   },
   icons: {
@@ -51,7 +50,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="zh-CN" data-theme="dark" suppressHydrationWarning>
+    <html lang="en" data-theme="dark" suppressHydrationWarning>
       <body className={`${geistSans.variable} ${geistMono.variable}`}>{children}</body>
     </html>
   );

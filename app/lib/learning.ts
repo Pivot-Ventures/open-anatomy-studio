@@ -1,5 +1,3 @@
-import type { LocalizedText } from "./anatomy";
-
 export type DisciplineId =
   | "medical-anatomy"
   | "biology"
@@ -10,13 +8,13 @@ export type DisciplineId =
 
 export type LearningSourceRef = {
   sourceId: string;
-  note: LocalizedText;
+  note: string;
 };
 
 export type LearningEntity = {
   id: string;
   kind: "organ" | "structure" | "process" | "concept";
-  name: LocalizedText;
+  name: string;
 };
 
 export type LearningScene = {
@@ -29,9 +27,9 @@ export type LearningScene = {
 
 type ActivityBase = {
   id: string;
-  title: LocalizedText;
-  instruction: LocalizedText;
-  success: LocalizedText;
+  title: string;
+  instruction: string;
+  success: string;
 };
 
 export type LearningActivity =
@@ -42,6 +40,10 @@ export type LearningActivity =
   | (ActivityBase & {
       kind: "section";
       minimumDepth: number;
+    })
+  | (ActivityBase & {
+      kind: "explode";
+      minimumAmount: number;
     })
   | (ActivityBase & {
       kind: "quiz";
@@ -59,9 +61,9 @@ export type LearningLesson = {
   id: string;
   disciplineId: DisciplineId;
   topicId: string;
-  title: LocalizedText;
+  title: string;
   durationMinutes: number;
-  objective: LocalizedText;
+  objective: string;
   scene: LearningScene;
   activities: LearningActivity[];
   assessments: LearningAssessment[];
@@ -70,43 +72,38 @@ export type LearningLesson = {
 
 export type LearningTopic = {
   id: string;
-  title: LocalizedText;
+  title: string;
   lessonIds: string[];
 };
 
 export type LearningDiscipline = {
   id: DisciplineId;
-  title: LocalizedText;
+  title: string;
   status: "active" | "planned";
   topicIds: string[];
 };
 
-const t = (zh: string, en: string): LocalizedText => ({ zh, en });
-
 /**
- * The heart lesson is the first vertical slice of the discipline-agnostic
- * learning contract. Future disciplines can supply other renderers while
- * reusing the same lesson, activity, assessment, and source boundaries.
+ * Guided lessons are the vertical slice of the discipline-agnostic learning
+ * contract. Each lesson binds a 3D scene to locate, section, explode, and
+ * quiz activities that the studio can verify as the learner works.
  */
 export const heartGuidedLesson: LearningLesson = {
   id: "heart-blood-flow-basics",
   disciplineId: "medical-anatomy",
   topicId: "cardiovascular-foundations",
-  title: t("心脏结构导学", "Guided heart structure"),
+  title: "Guided heart structure",
   durationMinutes: 4,
-  objective: t(
-    "定位左心室，观察心脏内部，并用一道题解释结构与泵血压力的关系。",
-    "Locate the left ventricle, inspect the heart interior, and explain how structure relates to pumping pressure.",
-  ),
+  objective: "Locate the left ventricle, inspect the heart interior, and explain how structure relates to pumping pressure.",
   scene: {
     id: "heart-3d-scene",
     renderer: "3d",
     organId: "heart",
-    initialHotspotId: "aorta",
+    initialHotspotId: "ventricle",
     entities: [
-      { id: "heart", kind: "organ", name: t("心脏", "Heart") },
-      { id: "ventricle", kind: "structure", name: t("左心室", "Left ventricle") },
-      { id: "aorta", kind: "structure", name: t("主动脉", "Aorta") },
+      { id: "heart", kind: "organ", name: "Heart" },
+      { id: "ventricle", kind: "structure", name: "Left ventricle" },
+      { id: "septum", kind: "structure", name: "Interventricular septum" },
     ],
   },
   activities: [
@@ -114,25 +111,33 @@ export const heartGuidedLesson: LearningLesson = {
       id: "heart-locate-ventricle",
       kind: "locate",
       targetHotspotId: "ventricle",
-      title: t("定位", "Locate"),
-      instruction: t("在 3D 标本上选择左心室标注。", "Select the left ventricle label on the 3D specimen."),
-      success: t("已定位左心室。", "Left ventricle located."),
+      title: "Locate",
+      instruction: "Select the left ventricle label on the 3D specimen.",
+      success: "Left ventricle located.",
     },
     {
       id: "heart-section-interior",
       kind: "section",
       minimumDepth: 0.18,
-      title: t("观察", "Observe"),
-      instruction: t("开启剖切模式，并将剖切深度移动到 0.18 以上。", "Turn on section mode and move section depth beyond 0.18."),
-      success: t("已完成内部观察。", "Interior observation complete."),
+      title: "Observe",
+      instruction: "Turn on section mode and move the section depth beyond 0.18 to look inside the chambers.",
+      success: "Interior observation complete.",
+    },
+    {
+      id: "heart-explode-parts",
+      kind: "explode",
+      minimumAmount: 0.4,
+      title: "Separate",
+      instruction: "Use explode to pull the chambers and valves apart and see how they fit together.",
+      success: "Chambers and valves separated.",
     },
     {
       id: "heart-check-understanding",
       kind: "quiz",
       assessmentId: "heart-wall-thickness-check",
-      title: t("解释", "Explain"),
-      instruction: t("完成快速测验，验证结构与压力的关系。", "Complete the quick quiz to check the structure-pressure relationship."),
-      success: t("测验通过，导学闭环完成。", "Quiz passed and the guided loop is complete."),
+      title: "Explain",
+      instruction: "Complete the quick quiz to check the structure-pressure relationship.",
+      success: "Quiz passed and the guided loop is complete.",
     },
   ],
   assessments: [
@@ -140,29 +145,149 @@ export const heartGuidedLesson: LearningLesson = {
       id: "heart-wall-thickness-check",
       kind: "single-choice",
       organId: "heart",
-      sourceRefs: [
-        { sourceId: "openstax", note: t("心腔结构与循环功能", "Heart chamber structure and circulatory function") },
-      ],
+      sourceRefs: [{ sourceId: "openstax", note: "Heart chamber structure and circulatory function" }],
     },
   ],
   sourceRefs: [
-    { sourceId: "openstax", note: t("心脏解剖与循环基础", "Heart anatomy and circulation foundations") },
-    { sourceId: "medlineplus", note: t("公众健康参考入口", "Public health reference entry point") },
+    { sourceId: "openstax", note: "Heart anatomy and circulation foundations" },
+    { sourceId: "medlineplus", note: "Public health reference entry point" },
   ],
 };
 
-export const learningTopics: LearningTopic[] = [
-  {
-    id: "cardiovascular-foundations",
-    title: t("心血管基础", "Cardiovascular foundations"),
-    lessonIds: [heartGuidedLesson.id],
+export const kidneyGuidedLesson: LearningLesson = {
+  id: "kidney-filtration-basics",
+  disciplineId: "medical-anatomy",
+  topicId: "urinary-foundations",
+  title: "Inside the kidney",
+  durationMinutes: 4,
+  objective: "Find the cortex and a renal pyramid, cut the kidney open, and explain where urine forms and where it collects.",
+  scene: {
+    id: "kidney-3d-scene",
+    renderer: "3d",
+    organId: "kidney",
+    initialHotspotId: "cortex",
+    entities: [
+      { id: "kidney", kind: "organ", name: "Kidney" },
+      { id: "cortex", kind: "structure", name: "Outer cortex" },
+      { id: "pyramid", kind: "structure", name: "Renal pyramid" },
+    ],
   },
+  activities: [
+    {
+      id: "kidney-locate-cortex",
+      kind: "locate",
+      targetHotspotId: "cortex",
+      title: "Locate",
+      instruction: "Select the outer cortex label, where the glomeruli filter the blood.",
+      success: "Cortex located.",
+    },
+    {
+      id: "kidney-locate-pyramid",
+      kind: "locate",
+      targetHotspotId: "pyramid",
+      title: "Locate",
+      instruction: "Now select a renal pyramid, where urine drains toward the papilla.",
+      success: "Renal pyramid located.",
+    },
+    {
+      id: "kidney-section-interior",
+      kind: "section",
+      minimumDepth: 0.15,
+      title: "Observe",
+      instruction: "Turn on section mode and cut past 0.15 to expose the pyramids inside the capsule.",
+      success: "Kidney interior exposed.",
+    },
+    {
+      id: "kidney-check-understanding",
+      kind: "quiz",
+      assessmentId: "kidney-nephron-check",
+      title: "Explain",
+      instruction: "Complete the quick quiz on the working unit of the kidney.",
+      success: "Quiz passed and the guided loop is complete.",
+    },
+  ],
+  assessments: [
+    {
+      id: "kidney-nephron-check",
+      kind: "single-choice",
+      organId: "kidney",
+      sourceRefs: [{ sourceId: "openstax", note: "Kidney structure and the nephron" }],
+    },
+  ],
+  sourceRefs: [{ sourceId: "openstax", note: "Urinary system foundations" }],
+};
+
+export const lungsGuidedLesson: LearningLesson = {
+  id: "lungs-airway-tree",
+  disciplineId: "medical-anatomy",
+  topicId: "respiratory-foundations",
+  title: "The airway tree",
+  durationMinutes: 4,
+  objective: "Trace air from the hilum into a lung segment, separate the segments, and explain where gas exchange happens.",
+  scene: {
+    id: "lungs-3d-scene",
+    renderer: "3d",
+    organId: "lungs",
+    initialHotspotId: "right-hilum",
+    entities: [
+      { id: "lungs", kind: "organ", name: "Lungs" },
+      { id: "right-hilum", kind: "structure", name: "Right hilum" },
+      { id: "right-apex", kind: "structure", name: "Right apical segment" },
+    ],
+  },
+  activities: [
+    {
+      id: "lungs-locate-hilum",
+      kind: "locate",
+      targetHotspotId: "right-hilum",
+      title: "Locate",
+      instruction: "Select the right hilum, where the main bronchus enters the lung.",
+      success: "Right hilum located.",
+    },
+    {
+      id: "lungs-explode-segments",
+      kind: "explode",
+      minimumAmount: 0.35,
+      title: "Separate",
+      instruction: "Use explode to pull the bronchopulmonary segments apart and reveal the bronchial tree.",
+      success: "Segments separated and the bronchial tree revealed.",
+    },
+    {
+      id: "lungs-check-understanding",
+      kind: "quiz",
+      assessmentId: "lungs-alveoli-check",
+      title: "Explain",
+      instruction: "Complete the quick quiz on where gases are exchanged.",
+      success: "Quiz passed and the guided loop is complete.",
+    },
+  ],
+  assessments: [
+    {
+      id: "lungs-alveoli-check",
+      kind: "single-choice",
+      organId: "lungs",
+      sourceRefs: [{ sourceId: "openstax", note: "Lung structure and gas exchange" }],
+    },
+  ],
+  sourceRefs: [{ sourceId: "openstax", note: "Respiratory system foundations" }],
+};
+
+export const guidedLessons: LearningLesson[] = [heartGuidedLesson, kidneyGuidedLesson, lungsGuidedLesson];
+
+export const lessonByOrganId = Object.fromEntries(
+  guidedLessons.filter((lesson) => lesson.scene.organId).map((lesson) => [lesson.scene.organId as string, lesson]),
+) as Record<string, LearningLesson>;
+
+export const learningTopics: LearningTopic[] = [
+  { id: "cardiovascular-foundations", title: "Cardiovascular foundations", lessonIds: [heartGuidedLesson.id] },
+  { id: "urinary-foundations", title: "Urinary foundations", lessonIds: [kidneyGuidedLesson.id] },
+  { id: "respiratory-foundations", title: "Respiratory foundations", lessonIds: [lungsGuidedLesson.id] },
 ];
 
 export const learningDisciplines: LearningDiscipline[] = [
   {
     id: "medical-anatomy",
-    title: t("医学解剖", "Medical anatomy"),
+    title: "Medical anatomy",
     status: "active",
     topicIds: learningTopics.map((topic) => topic.id),
   },

@@ -1,43 +1,50 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import {
   ArrowSquareOut,
+  ArrowsOut,
+  ArrowsIn,
   BookOpenText,
   BookmarkSimple,
+  Camera,
   CheckCircle,
   CircleNotch,
   Cube,
+  Eye,
+  EyeSlash,
   Flask,
-  GlobeHemisphereWest,
   Info,
   Keyboard,
+  ListBullets,
   MagnifyingGlass,
   Moon,
   Minus,
+  Palette,
   Pause,
   Play,
   Plus,
   Scissors,
+  Sparkle,
   Sun,
   Tag,
+  Target,
+  TextAa,
   X,
 } from "@phosphor-icons/react";
 import {
   anatomySources,
-  localize,
   organById,
   organs,
   systems,
   type BodySystem,
-  type Language,
+  type Hotspot,
 } from "../lib/anatomy";
 import { copy } from "../lib/copy";
-import {
-  heartGuidedLesson,
-  type LearningActivity,
-} from "../lib/learning";
+import { lessonByOrganId, type LearningActivity } from "../lib/learning";
+import { describeStructure, structureGroupKey } from "../lib/structures";
+import type { MaterialMode, SectionAxis } from "./AnatomyViewer";
 
 type Theme = "dark" | "light";
 
@@ -54,10 +61,10 @@ const AnatomyViewer = dynamic(
 );
 
 const STORAGE = {
-  language: "open-anatomy-language",
-  theme: "open-anatomy-theme",
-  favorites: "open-anatomy-favorites",
-  visited: "open-anatomy-visited",
+  theme: "human-atlas-theme",
+  favorites: "human-atlas-favorites",
+  visited: "human-atlas-visited",
+  material: "human-atlas-material",
 };
 
 const readStoredList = (key: string) => {
@@ -69,43 +76,50 @@ const readStoredList = (key: string) => {
   }
 };
 
-const normalizeStructureName = (name: string) =>
-  name
-    .replace(/^(VIS|VH|VHM|VHF)[_-]*/i, "")
-    .replace(/[_-]+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
+const ui = copy;
+
+type StructureGroup = {
+  key: string;
+  label: string;
+  meaning?: string;
+  names: string[];
+};
 
 export function AnatomyStudio() {
-  const [lang, setLang] = useState<Language>("zh");
   const [theme, setTheme] = useState<Theme>("dark");
   const [activeId, setActiveId] = useState("heart");
   const [query, setQuery] = useState("");
   const [systemFilter, setSystemFilter] = useState<BodySystem | "all">("all");
   const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [favorites, setFavorites] = useState<string[]>([]);
-  const [visited, setVisited] = useState<string[]>([]);
+  const [visited, setVisited] = useState<string[]>(["heart"]);
   const [autoRotate, setAutoRotate] = useState(true);
   const [showLabels, setShowLabels] = useState(true);
   const [sectionMode, setSectionMode] = useState(false);
+  const [sectionAxis, setSectionAxis] = useState<SectionAxis>("x");
   const [sectionDepth, setSectionDepth] = useState(0);
+  const [explodeMode, setExplodeMode] = useState(false);
+  const [explode, setExplode] = useState(0);
+  const [materialMode, setMaterialMode] = useState<MaterialMode>("realistic");
   const [selectedStructure, setSelectedStructure] = useState<string | null>(null);
-  const [selectedHotspotId, setSelectedHotspotId] = useState<string | null>("aorta");
+  const [hiddenStructures, setHiddenStructures] = useState<string[]>([]);
+  const [structures, setStructures] = useState<string[]>([]);
+  const [structureFilter, setStructureFilter] = useState("");
+  const [selectedHotspotId, setSelectedHotspotId] = useState<string | null>("ventricle");
   const [resetSignal, setResetSignal] = useState(0);
   const [sourcesOpen, setSourcesOpen] = useState(false);
   const [quizOpen, setQuizOpen] = useState(false);
   const [answer, setAnswer] = useState<number | null>(null);
   const [checked, setChecked] = useState(false);
   const [completedActivityIds, setCompletedActivityIds] = useState<string[]>([]);
+  const [snapshotNotice, setSnapshotNotice] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  const captureRef = useRef<(() => string | null) | null>(null);
+  const viewerPanelRef = useRef<HTMLElement>(null);
 
   const activeOrgan = organById[activeId] ?? organs[0];
-  const ui = copy[lang];
-  const selectedHotspot =
-    activeOrgan.hotspots.find((hotspot) => hotspot.id === selectedHotspotId) ??
-    activeOrgan.hotspots[0];
-  const activeLesson = activeId === heartGuidedLesson.scene.organId
-    ? heartGuidedLesson
-    : null;
+  const activeLesson = lessonByOrganId[activeId] ?? null;
   const lessonCompletedCount = activeLesson
     ? activeLesson.activities.filter((activity) => completedActivityIds.includes(activity.id)).length
     : 0;
@@ -113,29 +127,47 @@ export function AnatomyStudio() {
     (activity) => !completedActivityIds.includes(activity.id),
   )?.id;
 
+  const resolveStructure = useCallback(
+    (target: string | undefined) => {
+      if (!target) return null;
+      return structures.find((name) => name === target)
+        ?? structures.find((name) => name.startsWith(target))
+        ?? structures.find((name) => name.toLowerCase().includes(target.toLowerCase()))
+        ?? null;
+    },
+    [structures],
+  );
+
+  const handleStructuresLoaded = useCallback((names: string[]) => {
+    setStructures((current) => (
+      current.length === names.length && current.every((name, index) => name === names[index]) ? current : names
+    ));
+  }, []);
+
   const completeActivity = useCallback((id: string) => {
     setCompletedActivityIds((current) => current.includes(id) ? current : [...current, id]);
   }, []);
 
   const selectHotspot = useCallback((id: string) => {
+    const hotspot = activeOrgan.hotspots.find((candidate) => candidate.id === id);
     setSelectedHotspotId(id);
-    setSelectedStructure(null);
-    const locateActivity = heartGuidedLesson.activities.find(
-      (activity) => activity.kind === "locate" && activity.targetHotspotId === id,
-    );
-    if (activeId === heartGuidedLesson.scene.organId && locateActivity) {
-      completeActivity(locateActivity.id);
-    }
-  }, [activeId, completeActivity]);
+    setSelectedStructure(hotspot?.mesh ? resolveStructure(hotspot.mesh) : null);
+    activeLesson?.activities.forEach((activity) => {
+      if (activity.kind === "locate" && activity.targetHotspotId === id) completeActivity(activity.id);
+    });
+  }, [activeLesson, activeOrgan.hotspots, completeActivity, resolveStructure]);
 
   const selectOrgan = useCallback((id: string) => {
     const nextOrgan = organById[id];
     if (!nextOrgan) return;
-
     setActiveId(id);
     setSelectedStructure(null);
+    setHiddenStructures([]);
+    setStructures([]);
+    setStructureFilter("");
     setSelectedHotspotId(nextOrgan.hotspots[0]?.id ?? null);
     setSectionDepth(0);
+    setExplode(0);
     setAnswer(null);
     setChecked(false);
     setVisited((current) => {
@@ -144,7 +176,6 @@ export function AnatomyStudio() {
       window.localStorage.setItem(STORAGE.visited, JSON.stringify(next));
       return next;
     });
-
   }, []);
 
   const selectRelative = useCallback((direction: number) => {
@@ -155,45 +186,53 @@ export function AnatomyStudio() {
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
-      const storedLanguage = window.localStorage.getItem(STORAGE.language);
       const storedTheme = window.localStorage.getItem(STORAGE.theme);
-      setLang(storedLanguage === "en" ? "en" : "zh");
+      const storedMaterial = window.localStorage.getItem(STORAGE.material);
       setTheme(storedTheme === "light" ? "light" : "dark");
+      setMaterialMode(storedMaterial === "schematic" ? "schematic" : "realistic");
       setFavorites(readStoredList(STORAGE.favorites));
       const storedVisited = readStoredList(STORAGE.visited);
       setVisited(storedVisited.includes("heart") ? storedVisited : [...storedVisited, "heart"]);
-
-      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-        setAutoRotate(false);
-      }
+      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) setAutoRotate(false);
     }, 0);
     return () => window.clearTimeout(timer);
   }, []);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
-    document.documentElement.lang = lang === "zh" ? "zh-CN" : "en";
+    document.documentElement.lang = "en";
     window.localStorage.setItem(STORAGE.theme, theme);
-    window.localStorage.setItem(STORAGE.language, lang);
-  }, [lang, theme]);
+  }, [theme]);
+
+  useEffect(() => {
+    window.localStorage.setItem(STORAGE.material, materialMode);
+  }, [materialMode]);
+
+  useEffect(() => {
+    const onChange = () => setIsFullscreen(Boolean(document.fullscreenElement));
+    document.addEventListener("fullscreenchange", onChange);
+    return () => document.removeEventListener("fullscreenchange", onChange);
+  }, []);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
       if (target?.closest("input, textarea, select, button, a")) return;
-
+      const key = event.key.toLowerCase();
       if (event.key === " ") {
         event.preventDefault();
         setAutoRotate((value) => !value);
       }
-      if (event.key.toLowerCase() === "j") selectRelative(1);
-      if (event.key.toLowerCase() === "k") selectRelative(-1);
+      if (key === "j") selectRelative(1);
+      if (key === "k") selectRelative(-1);
+      if (key === "l") setShowLabels((value) => !value);
+      if (key === "s") setSectionMode((value) => !value);
+      if (key === "e") setExplodeMode((value) => !value);
       if (event.key === "Escape") {
         setQuizOpen(false);
         setSourcesOpen(false);
       }
     };
-
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [selectRelative]);
@@ -202,11 +241,11 @@ export function AnatomyStudio() {
     const normalized = query.trim().toLocaleLowerCase();
     return organs.filter((organ) => {
       const text = [
-        organ.name.zh,
-        organ.name.en,
+        organ.name,
         organ.latin,
-        systems[organ.system].zh,
-        systems[organ.system].en,
+        systems[organ.system],
+        ...organ.hotspots.map((hotspot) => hotspot.name),
+        ...organ.terms.map((term) => term.term),
       ]
         .join(" ")
         .toLocaleLowerCase();
@@ -216,6 +255,24 @@ export function AnatomyStudio() {
       return matchesSearch && matchesSystem && matchesFavorite;
     });
   }, [favorites, favoritesOnly, query, systemFilter]);
+
+  const structureGroups = useMemo<StructureGroup[]>(() => {
+    const groups = new Map<string, StructureGroup>();
+    structures.forEach((name) => {
+      const key = structureGroupKey(name);
+      const existing = groups.get(key);
+      if (existing) {
+        existing.names.push(name);
+        return;
+      }
+      const info = describeStructure(name);
+      groups.set(key, { key, label: key, meaning: info.meaning, names: [name] });
+    });
+    const filter = structureFilter.trim().toLowerCase();
+    return [...groups.values()]
+      .filter((group) => !filter || group.label.toLowerCase().includes(filter) || group.meaning?.toLowerCase().includes(filter))
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }, [structureFilter, structures]);
 
   const toggleFavorite = () => {
     setFavorites((current) => {
@@ -233,13 +290,18 @@ export function AnatomyStudio() {
 
   const updateSectionDepth = (value: number) => {
     setSectionDepth(value);
-    if (activeId !== heartGuidedLesson.scene.organId || !sectionMode) return;
-    const sectionActivity = heartGuidedLesson.activities.find(
-      (activity) => activity.kind === "section",
-    );
-    if (sectionActivity?.kind === "section" && Math.abs(value) >= sectionActivity.minimumDepth) {
-      completeActivity(sectionActivity.id);
-    }
+    if (!activeLesson || !sectionMode) return;
+    activeLesson.activities.forEach((activity) => {
+      if (activity.kind === "section" && Math.abs(value) >= activity.minimumDepth) completeActivity(activity.id);
+    });
+  };
+
+  const updateExplode = (value: number) => {
+    setExplode(value);
+    if (!activeLesson) return;
+    activeLesson.activities.forEach((activity) => {
+      if (activity.kind === "explode" && value >= activity.minimumAmount) completeActivity(activity.id);
+    });
   };
 
   const activateGuidedActivity = (activity: LearningActivity) => {
@@ -252,15 +314,58 @@ export function AnatomyStudio() {
       setSectionMode(true);
       setAutoRotate(false);
     }
-    if (activity.kind === "quiz") {
-      setQuizOpen(true);
+    if (activity.kind === "explode") {
+      setExplodeMode(true);
+      setAutoRotate(false);
     }
+    if (activity.kind === "quiz") setQuizOpen(true);
     if (activity.kind !== "quiz") {
       window.requestAnimationFrame(() => {
-        document.querySelector(".viewer-panel")?.scrollIntoView({ block: "start" });
+        viewerPanelRef.current?.scrollIntoView({ block: "start" });
       });
     }
   };
+
+  const toggleGroupVisibility = (group: StructureGroup) => {
+    setHiddenStructures((current) => {
+      const allHidden = group.names.every((name) => current.includes(name));
+      if (allHidden) return current.filter((name) => !group.names.includes(name));
+      return [...new Set([...current, ...group.names])];
+    });
+  };
+
+  const isolateGroup = (group: StructureGroup) => {
+    setHiddenStructures(structures.filter((name) => !group.names.includes(name)));
+    setSelectedStructure(group.names[0] ?? null);
+  };
+
+  const saveSnapshot = () => {
+    const data = captureRef.current?.();
+    if (!data) return;
+    const link = document.createElement("a");
+    link.href = data;
+    link.download = `${activeOrgan.id}-human-atlas.png`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setSnapshotNotice(true);
+    window.setTimeout(() => setSnapshotNotice(false), 1800);
+  };
+
+  const toggleFullscreen = () => {
+    if (document.fullscreenElement) {
+      void document.exitFullscreen();
+      return;
+    }
+    void viewerPanelRef.current?.requestFullscreen?.();
+  };
+
+  const selectedInfo = selectedStructure ? describeStructure(selectedStructure) : null;
+  const hotspotForStructure: Hotspot | undefined = selectedStructure
+    ? activeOrgan.hotspots.find((hotspot) => hotspot.mesh && resolveStructure(hotspot.mesh) === selectedStructure)
+    : undefined;
+  const selectedHotspot =
+    activeOrgan.hotspots.find((hotspot) => hotspot.id === selectedHotspotId) ?? activeOrgan.hotspots[0];
 
   return (
     <main className="studio-shell">
@@ -284,33 +389,11 @@ export function AnatomyStudio() {
         </nav>
 
         <div className="header-actions">
-          <button
-            className="text-action"
-            type="button"
-            onClick={() => setSourcesOpen(true)}
-            aria-label={ui.sources}
-            title={ui.sources}
-          >
+          <button className="text-action" type="button" onClick={() => setSourcesOpen(true)} aria-label={ui.sources} title={ui.sources}>
             <BookOpenText size={17} weight="duotone" />
             <span>{ui.sources}</span>
           </button>
-          <button
-            className="icon-action"
-            type="button"
-            onClick={() => setLang(lang === "zh" ? "en" : "zh")}
-            aria-label={ui.language}
-            title={ui.language}
-          >
-            <GlobeHemisphereWest size={18} />
-            <span>{lang === "zh" ? "EN" : "中"}</span>
-          </button>
-          <button
-            className="icon-action"
-            type="button"
-            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-            aria-label={ui.theme}
-            title={ui.theme}
-          >
+          <button className="icon-action" type="button" onClick={() => setTheme(theme === "dark" ? "light" : "dark")} aria-label={ui.theme} title={ui.theme}>
             {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
           </button>
         </div>
@@ -327,7 +410,7 @@ export function AnatomyStudio() {
           <div className="panel-heading">
             <div>
               <small>{ui.library}</small>
-              <h2>{lang === "zh" ? "从系统进入人体" : "Enter through a system"}</h2>
+              <h2>{ui.enterThrough}</h2>
             </div>
             <span className="count-badge">{organs.length}</span>
           </div>
@@ -335,12 +418,7 @@ export function AnatomyStudio() {
           <label className="search-field">
             <MagnifyingGlass size={17} aria-hidden="true" />
             <span className="sr-only">{ui.search}</span>
-            <input
-              type="search"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder={ui.search}
-            />
+            <input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={ui.search} />
             {query && (
               <button type="button" onClick={() => setQuery("")} aria-label={ui.close}>
                 <X size={14} />
@@ -348,7 +426,7 @@ export function AnatomyStudio() {
             )}
           </label>
 
-          <div className="system-filter" role="list" aria-label={lang === "zh" ? "按系统筛选" : "Filter by system"}>
+          <div className="system-filter" role="list" aria-label={ui.filterBySystem}>
             <button
               type="button"
               className={systemFilter === "all" && !favoritesOnly ? "active" : ""}
@@ -369,16 +447,12 @@ export function AnatomyStudio() {
                   setFavoritesOnly(false);
                 }}
               >
-                {localize(label, lang)}
+                {label}
               </button>
             ))}
           </div>
 
-          <button
-            type="button"
-            className={`favorites-filter ${favoritesOnly ? "active" : ""}`}
-            onClick={() => setFavoritesOnly((value) => !value)}
-          >
+          <button type="button" className={`favorites-filter ${favoritesOnly ? "active" : ""}`} onClick={() => setFavoritesOnly((value) => !value)}>
             <BookmarkSimple size={16} weight={favoritesOnly ? "fill" : "regular"} />
             {ui.favorites}
             <span>{favorites.length}</span>
@@ -397,8 +471,8 @@ export function AnatomyStudio() {
                 <span className="organ-index">{String(index + 1).padStart(2, "0")}</span>
                 <span className="organ-swatch" aria-hidden="true"><Cube size={18} weight="duotone" /></span>
                 <span className="organ-copy">
-                  <strong>{localize(organ.name, lang)}</strong>
-                  <small>{localize(systems[organ.system], lang)}</small>
+                  <strong>{organ.name}</strong>
+                  <small>{systems[organ.system]}</small>
                 </span>
                 {favorites.includes(organ.id) && <BookmarkSimple className="saved-icon" size={14} weight="fill" />}
               </button>
@@ -412,11 +486,11 @@ export function AnatomyStudio() {
           </div>
         </aside>
 
-        <section className="viewer-panel" aria-label={ui.modelStage}>
+        <section className="viewer-panel" aria-label={ui.modelStage} ref={viewerPanelRef}>
           <div className="viewer-titlebar">
             <div>
-              <span>{ui.modelStage} / {localize(systems[activeOrgan.system], lang)}</span>
-              <h1>{localize(activeOrgan.name, lang)}</h1>
+              <span>{ui.modelStage} / {systems[activeOrgan.system]}</span>
+              <h1>{activeOrgan.name}</h1>
               <em>{activeOrgan.latin}</em>
             </div>
             <button
@@ -434,15 +508,20 @@ export function AnatomyStudio() {
             <AnatomyViewer
               organ={activeOrgan}
               nextModel={nextModel}
-              lang={lang}
               autoRotate={autoRotate}
               showLabels={showLabels}
               sectionMode={sectionMode}
+              sectionAxis={sectionAxis}
               sectionDepth={sectionDepth}
+              explode={explodeMode ? explode : 0}
+              materialMode={materialMode}
               selectedStructure={selectedStructure}
+              hiddenStructures={hiddenStructures}
               onSelectStructure={setSelectedStructure}
               onSelectHotspot={selectHotspot}
+              onStructuresLoaded={handleStructuresLoaded}
               resetSignal={resetSignal}
+              captureRef={captureRef}
               loadingLabel={ui.loading}
               errorLabel={ui.modelError}
               webglFallbackLabel={ui.webglFallback}
@@ -451,9 +530,10 @@ export function AnatomyStudio() {
             <div className="viewer-instructions"><Info size={14} /> {ui.dragHint}</div>
             <div className="viewer-readout">
               <span>{ui.currentOrgan}</span>
-              <strong>{String(organs.findIndex((organ) => organ.id === activeId) + 1).padStart(2, "0")}</strong>
+              <strong>{String(activeIndex + 1).padStart(2, "0")}</strong>
               <small>/ {String(organs.length).padStart(2, "0")}</small>
             </div>
+            {snapshotNotice && <div className="viewer-toast" role="status"><Camera size={14} /> {ui.snapshotDone}</div>}
           </div>
 
           <div className="viewer-controls">
@@ -469,12 +549,39 @@ export function AnatomyStudio() {
               <Scissors size={16} />
               {ui.section}
             </button>
+            <button type="button" className={explodeMode ? "active" : ""} onClick={() => setExplodeMode((value) => !value)}>
+              <ArrowsOut size={16} />
+              {ui.explode}
+            </button>
+            <button
+              type="button"
+              className={materialMode === "schematic" ? "active" : ""}
+              onClick={() => setMaterialMode((value) => value === "realistic" ? "schematic" : "realistic")}
+              title={ui.materialHint}
+            >
+              {materialMode === "realistic" ? <Sparkle size={16} /> : <Palette size={16} />}
+              {materialMode === "realistic" ? ui.materialRealistic : ui.materialSchematic}
+            </button>
             <button type="button" onClick={() => setResetSignal((value) => value + 1)}>
               <Cube size={16} />
               {ui.reset}
             </button>
-            {selectedStructure && (
-              <button type="button" onClick={() => setSelectedStructure(null)}>
+            <button type="button" onClick={saveSnapshot}>
+              <Camera size={16} />
+              {ui.snapshot}
+            </button>
+            <button type="button" onClick={toggleFullscreen}>
+              {isFullscreen ? <ArrowsIn size={16} /> : <ArrowsOut size={16} weight="bold" />}
+              {isFullscreen ? ui.exitFullscreen : ui.fullscreen}
+            </button>
+            {(selectedStructure || hiddenStructures.length > 0) && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedStructure(null);
+                  setHiddenStructures([]);
+                }}
+              >
                 <X size={16} />
                 {ui.clearFocus}
               </button>
@@ -484,11 +591,7 @@ export function AnatomyStudio() {
           {sectionMode && (
             <div className="section-slider">
               <span>{ui.sectionDepth}</span>
-              <button
-                type="button"
-                onClick={() => updateSectionDepth(Math.max(-1, Number((sectionDepth - 0.1).toFixed(2))))}
-                aria-label={ui.sectionDecrease}
-              >
+              <button type="button" onClick={() => updateSectionDepth(Math.max(-1, Number((sectionDepth - 0.1).toFixed(2))))} aria-label={ui.sectionDecrease}>
                 <Minus size={14} />
               </button>
               <input
@@ -500,14 +603,45 @@ export function AnatomyStudio() {
                 aria-label={ui.sectionDepth}
                 onInput={(event) => updateSectionDepth(Number(event.currentTarget.value))}
               />
-              <button
-                type="button"
-                onClick={() => updateSectionDepth(Math.min(1, Number((sectionDepth + 0.1).toFixed(2))))}
-                aria-label={ui.sectionIncrease}
-              >
+              <button type="button" onClick={() => updateSectionDepth(Math.min(1, Number((sectionDepth + 0.1).toFixed(2))))} aria-label={ui.sectionIncrease}>
                 <Plus size={14} />
               </button>
               <output>{sectionDepth.toFixed(2)}</output>
+              <div className="axis-toggle" role="group" aria-label={ui.sectionAxis}>
+                {(["x", "y", "z"] as SectionAxis[]).map((axis) => (
+                  <button
+                    key={axis}
+                    type="button"
+                    className={sectionAxis === axis ? "active" : ""}
+                    onClick={() => setSectionAxis(axis)}
+                    title={axis === "x" ? ui.axisX : axis === "y" ? ui.axisY : ui.axisZ}
+                  >
+                    {axis.toUpperCase()}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {explodeMode && (
+            <div className="section-slider explode-slider">
+              <span>{ui.explodeAmount}</span>
+              <button type="button" onClick={() => updateExplode(Math.max(0, Number((explode - 0.1).toFixed(2))))} aria-label={ui.explodeDecrease}>
+                <Minus size={14} />
+              </button>
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.02"
+                value={explode}
+                aria-label={ui.explodeAmount}
+                onInput={(event) => updateExplode(Number(event.currentTarget.value))}
+              />
+              <button type="button" onClick={() => updateExplode(Math.min(1, Number((explode + 0.1).toFixed(2))))} aria-label={ui.explodeIncrease}>
+                <Plus size={14} />
+              </button>
+              <output>{explode.toFixed(2)}</output>
             </div>
           )}
         </section>
@@ -515,18 +649,18 @@ export function AnatomyStudio() {
         <aside className="info-panel" aria-label={ui.overview}>
           <div className="info-status">
             <span style={{ background: activeOrgan.accent }} aria-hidden="true" />
-            {localize(systems[activeOrgan.system], lang)}
+            {systems[activeOrgan.system]}
             <small>{activeOrgan.modelSource === "local" ? ui.localModel : "HRA · CC BY 4.0"}</small>
           </div>
 
           <div className="info-intro">
             <small>{ui.overview}</small>
-            <p>{localize(activeOrgan.summary, lang)}</p>
-            <blockquote>{localize(activeOrgan.role, lang)}</blockquote>
+            <p>{activeOrgan.summary}</p>
+            <blockquote>{activeOrgan.role}</blockquote>
             {activeOrgan.modelScope && (
               <div className="model-scope-note">
                 <strong>{ui.modelScope}</strong>
-                <span>{localize(activeOrgan.modelScope, lang)}</span>
+                <span>{activeOrgan.modelScope}</span>
               </div>
             )}
           </div>
@@ -539,14 +673,12 @@ export function AnatomyStudio() {
               </div>
               <div className="guided-lesson-heading">
                 <div>
-                  <small>{ui.guidedLessonKicker}</small>
-                  <h3 id="guided-lesson-title">{localize(activeLesson.title, lang)}</h3>
+                  <small>{activeLesson.durationMinutes} minute {ui.guidedLessonKicker.toLowerCase()}</small>
+                  <h3 id="guided-lesson-title">{activeLesson.title}</h3>
                 </div>
-                <output aria-live="polite">
-                  {lessonCompletedCount}/{activeLesson.activities.length}
-                </output>
+                <output aria-live="polite">{lessonCompletedCount}/{activeLesson.activities.length}</output>
               </div>
-              <p>{localize(activeLesson.objective, lang)}</p>
+              <p>{activeLesson.objective}</p>
               <div
                 className="guided-progress"
                 role="progressbar"
@@ -567,13 +699,11 @@ export function AnatomyStudio() {
                         {done ? <CheckCircle size={15} weight="fill" /> : index + 1}
                       </span>
                       <div>
-                        <strong>{localize(activity.title, lang)}</strong>
-                        <p>{localize(done ? activity.success : activity.instruction, lang)}</p>
+                        <strong>{activity.title}</strong>
+                        <p>{done ? activity.success : activity.instruction}</p>
                       </div>
                       {!done && (
-                        <button type="button" onClick={() => activateGuidedActivity(activity)}>
-                          {ui.lessonAction}
-                        </button>
+                        <button type="button" onClick={() => activateGuidedActivity(activity)}>{ui.lessonAction}</button>
                       )}
                     </li>
                   );
@@ -590,17 +720,21 @@ export function AnatomyStudio() {
           <section className="focus-card">
             <div className="section-label">
               <span>{ui.selectedStructure}</span>
-              <Cube size={15} />
+              <Target size={15} />
             </div>
-            {selectedStructure ? (
+            {selectedStructure && selectedInfo ? (
               <div className="model-structure">
-                <strong>{normalizeStructureName(selectedStructure)}</strong>
-                <small>{lang === "zh" ? "来自模型的语义对象名称" : "Semantic object name from the model"}</small>
+                <strong>{hotspotForStructure?.name ?? selectedInfo.label}</strong>
+                <p>{hotspotForStructure?.detail ?? selectedInfo.meaning ?? ui.structureMeaningFallback}</p>
+                {hotspotForStructure && selectedInfo.meaning && hotspotForStructure.detail !== selectedInfo.meaning && (
+                  <p className="structure-extra">{selectedInfo.meaning}</p>
+                )}
+                <small>{ui.semanticName}: <code>{selectedStructure}</code></small>
               </div>
             ) : selectedHotspot ? (
               <div className="hotspot-detail">
-                <strong>{localize(selectedHotspot.name, lang)}</strong>
-                <p>{localize(selectedHotspot.detail, lang)}</p>
+                <strong>{selectedHotspot.name}</strong>
+                <p>{selectedHotspot.detail}</p>
               </div>
             ) : (
               <p className="muted-copy">{ui.selectStructure}</p>
@@ -610,9 +744,10 @@ export function AnatomyStudio() {
                 <button
                   key={hotspot.id}
                   type="button"
-                  className={!selectedStructure && selectedHotspotId === hotspot.id ? "active" : ""}
+                  className={selectedHotspotId === hotspot.id && (!selectedStructure || hotspotForStructure?.id === hotspot.id) ? "active" : ""}
                   onClick={() => selectHotspot(hotspot.id)}
-                  aria-label={localize(hotspot.name, lang)}
+                  aria-label={hotspot.name}
+                  title={hotspot.name}
                 >
                   {index + 1}
                 </button>
@@ -620,14 +755,59 @@ export function AnatomyStudio() {
             </div>
           </section>
 
+          {structures.length > 0 && (
+            <section className="structure-section">
+              <div className="section-label">
+                <span>{ui.structures}</span>
+                <ListBullets size={15} />
+              </div>
+              <div className="structure-toolbar">
+                <label className="structure-filter">
+                  <MagnifyingGlass size={14} aria-hidden="true" />
+                  <span className="sr-only">{ui.structureFilter}</span>
+                  <input type="search" value={structureFilter} onChange={(event) => setStructureFilter(event.target.value)} placeholder={ui.structureFilter} />
+                </label>
+                <small>{structures.length} {ui.structureCount}{hiddenStructures.length ? ` · ${hiddenStructures.length} ${ui.hidden}` : ""}</small>
+                {hiddenStructures.length > 0 && (
+                  <button type="button" onClick={() => setHiddenStructures([])}>{ui.showAll}</button>
+                )}
+              </div>
+              <ul className="structure-list">
+                {structureGroups.map((group) => {
+                  const hidden = group.names.every((name) => hiddenStructures.includes(name));
+                  const active = Boolean(selectedStructure && group.names.includes(selectedStructure));
+                  return (
+                    <li key={group.key} className={`${hidden ? "hidden" : ""} ${active ? "active" : ""}`}>
+                      <button
+                        type="button"
+                        className="structure-name"
+                        onClick={() => setSelectedStructure(active ? null : group.names[0])}
+                        title={group.meaning ?? group.label}
+                      >
+                        <strong>{group.label}</strong>
+                        {group.names.length > 1 && <span>{group.names.length}</span>}
+                      </button>
+                      <button type="button" className="structure-action" onClick={() => isolateGroup(group)} aria-label={`${ui.isolate} ${group.label}`} title={ui.isolate}>
+                        <Target size={14} />
+                      </button>
+                      <button type="button" className="structure-action" onClick={() => toggleGroupVisibility(group)} aria-label={`${hidden ? ui.show : ui.hide} ${group.label}`} title={hidden ? ui.show : ui.hide}>
+                        {hidden ? <EyeSlash size={14} /> : <Eye size={14} />}
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          )}
+
           <section className="fact-section">
             <div className="section-label"><span>{ui.keyFacts}</span><Flask size={15} /></div>
             <dl>
               {activeOrgan.facts.map((fact) => (
-                <div key={fact.label.en}>
-                  <dt>{localize(fact.label, lang)}</dt>
+                <div key={fact.label}>
+                  <dt>{fact.label}</dt>
                   <dd>
-                    <span>{localize(fact.value, lang)}</span>
+                    <span>{fact.value}</span>
                     {fact.sourceIds?.map((sourceId) => (
                       <button
                         key={sourceId}
@@ -640,10 +820,20 @@ export function AnatomyStudio() {
                         {sourceId === "openstax" ? "OpenStax" : sourceId}
                       </button>
                     ))}
-                    {fact.reviewStatus === "draft" && (
-                      <small className="fact-review-status">{ui.factDraft}</small>
-                    )}
+                    {fact.reviewStatus === "draft" && <small className="fact-review-status">{ui.factDraft}</small>}
                   </dd>
+                </div>
+              ))}
+            </dl>
+          </section>
+
+          <section className="terms-section">
+            <div className="section-label"><span>{ui.terms}</span><TextAa size={15} /></div>
+            <dl>
+              {activeOrgan.terms.map((term) => (
+                <div key={term.term}>
+                  <dt>{term.term}</dt>
+                  <dd>{term.meaning}</dd>
                 </div>
               ))}
             </dl>
@@ -653,7 +843,7 @@ export function AnatomyStudio() {
             <div className="section-label"><span>{ui.functions}</span><CheckCircle size={15} /></div>
             <ul>
               {activeOrgan.functions.map((item, index) => (
-                <li key={item.en}><span>{String(index + 1).padStart(2, "0")}</span>{localize(item, lang)}</li>
+                <li key={item}><span>{String(index + 1).padStart(2, "0")}</span>{item}</li>
               ))}
             </ul>
           </section>
@@ -686,13 +876,7 @@ export function AnatomyStudio() {
 
       {sourcesOpen && (
         <div className="modal-backdrop" role="presentation" onMouseDown={() => setSourcesOpen(false)}>
-          <aside
-            className="source-drawer"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="source-title"
-            onMouseDown={(event) => event.stopPropagation()}
-          >
+          <aside className="source-drawer" role="dialog" aria-modal="true" aria-labelledby="source-title" onMouseDown={(event) => event.stopPropagation()}>
             <div className="modal-heading">
               <div>
                 <small>{ui.sources}</small>
@@ -705,14 +889,14 @@ export function AnatomyStudio() {
             <div className="license-matrix">
               <div><small>{ui.modelLicense}</small><strong>CC BY 4.0</strong><p>{ui.modelLicenseText}</p></div>
               <div><small>{ui.codeLicense}</small><strong>MIT</strong><p>{ui.codeLicenseText}</p></div>
-              <div><small>{ui.contentLicense}</small><strong>{lang === "zh" ? "教育摘要" : "Educational summary"}</strong><p>{ui.contentLicenseText}</p></div>
+              <div><small>{ui.contentLicense}</small><strong>{ui.contentLicenseLabel}</strong><p>{ui.contentLicenseText}</p></div>
             </div>
 
             <div className="source-list">
               {anatomySources.map((source, index) => (
                 <a key={source.id} href={source.url} target="_blank" rel="noreferrer">
                   <span>{String(index + 1).padStart(2, "0")}</span>
-                  <div><strong>{localize(source.title, lang)}</strong><p>{localize(source.detail, lang)}</p></div>
+                  <div><strong>{source.title}</strong><p>{source.detail}</p></div>
                   <ArrowSquareOut size={18} />
                 </a>
               ))}
@@ -723,17 +907,11 @@ export function AnatomyStudio() {
 
       {quizOpen && (
         <div className="modal-backdrop centered" role="presentation" onMouseDown={() => setQuizOpen(false)}>
-          <section
-            className="quiz-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="quiz-title"
-            onMouseDown={(event) => event.stopPropagation()}
-          >
+          <section className="quiz-modal" role="dialog" aria-modal="true" aria-labelledby="quiz-title" onMouseDown={(event) => event.stopPropagation()}>
             <div className="modal-heading">
               <div>
-                <small>{localize(activeOrgan.name, lang)} / {ui.quiz}</small>
-                <h2 id="quiz-title">{localize(activeOrgan.quiz.question, lang)}</h2>
+                <small>{activeOrgan.name} / {ui.quiz}</small>
+                <h2 id="quiz-title">{activeOrgan.quiz.question}</h2>
                 <p>{ui.quizHint}</p>
               </div>
               <button type="button" onClick={() => setQuizOpen(false)} aria-label={ui.close}><X size={20} /></button>
@@ -743,9 +921,9 @@ export function AnatomyStudio() {
                 const isCorrect = index === activeOrgan.quiz.answer;
                 const state = checked && isCorrect ? "correct" : checked && answer === index ? "wrong" : answer === index ? "selected" : "";
                 return (
-                  <button key={option.en} type="button" className={state} onClick={() => !checked && setAnswer(index)}>
+                  <button key={option} type="button" className={state} onClick={() => !checked && setAnswer(index)}>
                     <span>{String.fromCharCode(65 + index)}</span>
-                    {localize(option, lang)}
+                    {option}
                     {checked && isCorrect && <CheckCircle size={18} weight="fill" />}
                   </button>
                 );
@@ -754,7 +932,7 @@ export function AnatomyStudio() {
             {checked && (
               <div className={`quiz-feedback ${answer === activeOrgan.quiz.answer ? "correct" : "wrong"}`}>
                 <strong>{answer === activeOrgan.quiz.answer ? ui.correct : ui.incorrect}</strong>
-                <p>{localize(activeOrgan.quiz.explanation, lang)}</p>
+                <p>{activeOrgan.quiz.explanation}</p>
               </div>
             )}
             <div className="quiz-actions">
@@ -765,9 +943,10 @@ export function AnatomyStudio() {
                   disabled={answer === null}
                   onClick={() => {
                     setChecked(true);
-                    if (activeId === heartGuidedLesson.scene.organId && answer === activeOrgan.quiz.answer) {
-                      const quizActivity = heartGuidedLesson.activities.find((activity) => activity.kind === "quiz");
-                      if (quizActivity) completeActivity(quizActivity.id);
+                    if (activeLesson && answer === activeOrgan.quiz.answer) {
+                      activeLesson.activities.forEach((activity) => {
+                        if (activity.kind === "quiz") completeActivity(activity.id);
+                      });
                     }
                   }}
                 >
