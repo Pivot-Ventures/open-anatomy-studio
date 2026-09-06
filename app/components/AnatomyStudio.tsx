@@ -28,6 +28,8 @@ import {
   Scissors,
   Sparkle,
   Sun,
+  ArrowClockwise,
+  ImageSquare,
   Tag,
   Target,
   TextAa,
@@ -44,6 +46,7 @@ import {
 import { copy } from "../lib/copy";
 import { lessonByOrganId, type LearningActivity } from "../lib/learning";
 import { describeStructure, structureGroupKey } from "../lib/structures";
+import { cachedReference, requestAiReference, type AiReference } from "../lib/ai-reference";
 import type { MaterialMode, SectionAxis } from "./AnatomyViewer";
 
 type Theme = "dark" | "light";
@@ -113,6 +116,8 @@ export function AnatomyStudio() {
   const [checked, setChecked] = useState(false);
   const [completedActivityIds, setCompletedActivityIds] = useState<string[]>([]);
   const [snapshotNotice, setSnapshotNotice] = useState(false);
+  const [aiReference, setAiReference] = useState<AiReference | null>(null);
+  const [aiTarget, setAiTarget] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   const captureRef = useRef<(() => string | null) | null>(null);
@@ -183,6 +188,49 @@ export function AnatomyStudio() {
     const next = (index + direction + organs.length) % organs.length;
     selectOrgan(organs[next].id);
   }, [activeId, selectOrgan]);
+
+  const requestReference = useCallback(async (structureName: string | null, force = false) => {
+    const info = structureName ? describeStructure(structureName) : null;
+    // "Heart left ventricle" reads as "Left ventricle" once the organ is named.
+    const organPrefix = new RegExp(`^${activeOrgan.name.split(" ")[0]}\\s+`, "i");
+    const structure = info
+      ? { name: info.label.replace(organPrefix, (match) => (info.label.length > match.length + 2 ? "" : match)).replace(/^[a-z]/, (c) => c.toUpperCase()), meaning: info.meaning }
+      : null;
+    setAiTarget(structure?.name ?? null);
+    const cached = cachedReference(activeOrgan, structure?.name);
+    if (cached && !force) {
+      setAiReference(cached);
+      return;
+    }
+    setAiReference({ status: "loading" });
+    const result = await requestAiReference(activeOrgan, structure, { force });
+    setAiReference(result);
+  }, [activeOrgan]);
+
+  // Realistic tissue mode also asks EASI for the AI reference image of the
+  // organ. Cached results return instantly; a fresh render costs one call.
+  useEffect(() => {
+    if (materialMode !== "realistic") return;
+    let active = true;
+    // Resolve through the request helper (async) so React never sees a
+    // synchronous state update inside the effect body.
+    const run = async () => {
+      const cached = cachedReference(activeOrgan, null);
+      if (!active) return;
+      setAiTarget(null);
+      if (cached) {
+        setAiReference(cached);
+        return;
+      }
+      setAiReference({ status: "loading" });
+      const result = await requestAiReference(activeOrgan, null);
+      if (active) setAiReference(result);
+    };
+    void run();
+    return () => {
+      active = false;
+    };
+  }, [activeOrgan, materialMode]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -360,6 +408,7 @@ export function AnatomyStudio() {
     void viewerPanelRef.current?.requestFullscreen?.();
   };
 
+  const aiBusy = aiReference?.status === "loading";
   const selectedInfo = selectedStructure ? describeStructure(selectedStructure) : null;
   const hotspotForStructure: Hotspot | undefined = selectedStructure
     ? activeOrgan.hotspots.find((hotspot) => hotspot.mesh && resolveStructure(hotspot.mesh) === selectedStructure)
@@ -525,6 +574,9 @@ export function AnatomyStudio() {
               loadingLabel={ui.loading}
               errorLabel={ui.modelError}
               webglFallbackLabel={ui.webglFallback}
+              contextLostTitle={ui.contextLostTitle}
+              contextLostDetail={ui.contextLostDetail}
+              contextLostAction={ui.contextLostAction}
             />
 
             <div className="viewer-instructions"><Info size={14} /> {ui.dragHint}</div>
@@ -753,6 +805,67 @@ export function AnatomyStudio() {
                 </button>
               ))}
             </div>
+          </section>
+
+          <section className="ai-reference" aria-labelledby="ai-reference-title">
+            <div className="section-label">
+              <span>{ui.aiReference}</span>
+              <ImageSquare size={15} />
+            </div>
+            <div className="ai-reference-heading">
+              <div>
+                <small>{ui.aiReferenceKicker}</small>
+                <h3 id="ai-reference-title">{aiTarget ? `${activeOrgan.name}: ${aiTarget}` : activeOrgan.name}</h3>
+              </div>
+              {aiReference?.status === "ready" && (
+                <button type="button" onClick={() => requestReference(aiTarget ? selectedStructure : null, true)} aria-label={ui.aiReferenceRegenerate} title={ui.aiReferenceRegenerate}>
+                  <ArrowClockwise size={15} />
+                </button>
+              )}
+            </div>
+            {aiReference?.status === "ready" ? (
+              <figure className="ai-reference-figure">
+                <a href={aiReference.url} target="_blank" rel="noreferrer" title={ui.aiReferenceOpen}>
+                  {/* eslint-disable-next-line @next/next/no-img-element -- served by the EASI API, not a static asset */}
+                  <img src={aiReference.url} alt={`${ui.aiReferenceAlt} ${aiTarget ? `${aiTarget} of the ${activeOrgan.name.toLowerCase()}` : `the ${activeOrgan.name.toLowerCase()}`}`} loading="lazy" />
+                </a>
+                <figcaption>
+                  <span>{aiReference.cached ? ui.aiReferenceCached : ui.aiReferenceFresh} · {aiReference.model || aiReference.provider}{aiReference.promptSource === "text-model" ? " · prompt by gpt-oss" : ""}</span>
+                  {aiReference.prompt && (
+                    <details>
+                      <summary>{ui.aiReferencePrompt}</summary>
+                      <p>{aiReference.prompt}</p>
+                    </details>
+                  )}
+                </figcaption>
+              </figure>
+            ) : aiReference?.status === "loading" ? (
+              <div className="ai-reference-state loading" role="status">
+                <CircleNotch size={18} />
+                <p>{ui.aiReferenceLoading}</p>
+              </div>
+            ) : aiReference?.status === "signin" ? (
+              <div className="ai-reference-state"><p>{ui.aiReferenceSignin}</p></div>
+            ) : aiReference?.status === "unavailable" ? (
+              <div className="ai-reference-state"><p>{aiReference.reason}</p></div>
+            ) : (
+              <p className="muted-copy">{ui.aiReferenceLead}</p>
+            )}
+            <div className="ai-reference-actions">
+              {(!aiReference || aiReference.status === "unavailable" || (aiReference.status === "ready" && aiTarget)) && (
+                <button type="button" onClick={() => requestReference(null)} disabled={aiBusy}>
+                  <Sparkle size={15} />
+                  {ui.aiReferenceGenerate}
+                </button>
+              )}
+              {selectedStructure && selectedInfo && aiTarget !== selectedInfo.label && (
+                <button type="button" onClick={() => requestReference(selectedStructure)} disabled={aiBusy}>
+                  <Target size={15} />
+                  {ui.aiReferenceStructure}
+                </button>
+              )}
+            </div>
+            {aiReference && aiReference.status !== "loading" && <p className="ai-reference-note">{ui.aiReferenceLead}</p>}
           </section>
 
           {structures.length > 0 && (
