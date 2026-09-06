@@ -67,6 +67,9 @@ export type AnatomyViewerProps = {
   loadingLabel: string;
   errorLabel: string;
   webglFallbackLabel: string;
+  contextLostTitle: string;
+  contextLostDetail: string;
+  contextLostAction: string;
 };
 
 type GltfOrgan = Organ & { model: string };
@@ -74,7 +77,8 @@ type GltfOrgan = Organ & { model: string };
 type RenderModelProps = Omit<
   AnatomyViewerProps,
   "autoRotate" | "resetSignal" | "loadingLabel" | "errorLabel" | "webglFallbackLabel" | "nextModel" | "captureRef"
->;
+  | "contextLostTitle" | "contextLostDetail" | "contextLostAction"
+> & { plainMaterials: boolean };
 
 class ModelErrorBoundary extends Component<{ model: string; label: string; children: ReactNode }, { hasError: boolean }> {
   state = { hasError: false };
@@ -297,7 +301,7 @@ function installTissueShader(material: MeshPhysicalMaterial, uniforms: TissueUni
   material.customProgramCacheKey = () => "human-atlas-tissue-v1";
 }
 
-function buildTissueMaterial(name: string, organ: Organ, source?: Material): TissueMaterial {
+function buildTissueMaterial(name: string, organ: Organ, source?: Material, plain = false): TissueMaterial {
   const info = describeStructure(name);
   const lower = name.toLowerCase();
   let kind: keyof typeof tissuePresets = info.tissue ?? organ.tissue;
@@ -327,7 +331,10 @@ function buildTissueMaterial(name: string, organ: Organ, source?: Material): Tis
     uTissueRough: { value: preset.roughVar },
     uTissueTint: { value: preset.tint },
   };
-  installTissueShader(material, uniforms);
+  // Devices whose GPU rejects the injected shader (reported through
+  // renderer.debug.onShaderError) fall back to the stock physical material so
+  // the stage never goes blank; only the procedural surface detail is lost.
+  if (!plain) installTissueShader(material, uniforms);
   material.userData = {
     tissueUniforms: uniforms,
     realistic: { color: material.color.clone(), preset },
@@ -356,7 +363,7 @@ type PreparedScene = {
   largestDimension: number;
 };
 
-function prepareScene(source: Object3D, organ: Organ): PreparedScene {
+function prepareScene(source: Object3D, organ: Organ, plainMaterials = false): PreparedScene {
   const scene = source.clone(true);
   const meshes: PreparedMesh[] = [];
   const usedNames = new Map<string, number>();
@@ -376,7 +383,7 @@ function prepareScene(source: Object3D, organ: Organ): PreparedScene {
     if (!geometry.boundingBox) geometry.computeBoundingBox();
 
     const sourceMaterial = Array.isArray(node.material) ? node.material[0] : node.material;
-    node.material = buildTissueMaterial(name, organ, sourceMaterial);
+    node.material = buildTissueMaterial(name, organ, sourceMaterial, plainMaterials);
     meshes.push({
       mesh: node,
       name,
@@ -456,10 +463,11 @@ function OrganModel({
   onSelectStructure,
   onSelectHotspot,
   onStructuresLoaded,
+  plainMaterials,
 }: Omit<RenderModelProps, "organ"> & { organ: GltfOrgan }) {
   const gltf = useGLTF(organ.model);
   const invalidate = useThree((state) => state.invalidate);
-  const prepared = useMemo(() => prepareScene(gltf.scene, organ), [gltf.scene, organ]);
+  const prepared = useMemo(() => prepareScene(gltf.scene, organ, plainMaterials), [gltf.scene, organ, plainMaterials]);
   const clippingPlane = useMemo(() => sectionPlaneFor(sectionAxis, sectionDepth), [sectionAxis, sectionDepth]);
 
   useEffect(() => {
@@ -487,9 +495,14 @@ function OrganModel({
       const isFaded = Boolean(selectedStructure && !isSelected);
       const data = material.userData;
 
-      material.clippingPlanes = sectionMode ? [clippingPlane] : [];
+      const nextPlanes = sectionMode ? [clippingPlane] : [];
+      const nextSide = sectionMode ? DoubleSide : data.baseSide;
+      // A program rebuild is only needed when clipping or face side changes;
+      // colour, roughness, and uniform edits apply without recompiling.
+      const needsProgram = (material.clippingPlanes?.length ?? 0) !== nextPlanes.length || material.side !== nextSide;
+      material.clippingPlanes = nextPlanes;
       material.clipShadows = false;
-      material.side = sectionMode ? DoubleSide : data.baseSide;
+      material.side = nextSide;
       material.opacity = isFaded ? Math.min(0.14, data.baseOpacity) : data.baseOpacity;
       material.transparent = isFaded || data.baseTransparent;
       material.depthWrite = !isFaded;
@@ -514,7 +527,7 @@ function OrganModel({
 
       material.emissive.copy(isSelected ? accent.clone().multiplyScalar(0.28) : new Color(0x000000));
       material.emissiveIntensity = isSelected ? 0.9 : 0;
-      material.needsUpdate = true;
+      if (needsProgram) material.needsUpdate = true;
     });
     invalidate();
   }, [clippingPlane, hiddenStructures, invalidate, materialMode, organ.accent, prepared, sectionMode, selectedStructure]);
@@ -816,8 +829,21 @@ export function resolveModelUrl(model: string) {
   return new URL(model, window.location.href).toString();
 }
 
+function StageNotice({ title, detail, action, onAction }: { title: string; detail: string; action: string; onAction: () => void }) {
+  return (
+    <div className="viewer-stage-notice" role="alert">
+      <strong>{title}</strong>
+      <p>{detail}</p>
+      <button type="button" onClick={onAction}>{action}</button>
+    </div>
+  );
+}
+
 export function AnatomyViewer(props: AnatomyViewerProps) {
   const [webglSupported] = useState(canCreateWebGLContext);
+  const [plainMaterials, setPlainMaterials] = useState(false);
+  const [contextLost, setContextLost] = useState(false);
+  const [restartCount, setRestartCount] = useState(0);
   const organ = useMemo<Organ>(
     () => (props.organ.model ? { ...props.organ, model: resolveModelUrl(props.organ.model) } : props.organ),
     [props.organ],
@@ -840,11 +866,41 @@ export function AnatomyViewer(props: AnatomyViewerProps) {
   const onCreated = ({ gl }: RootState) => {
     gl.localClippingEnabled = true;
     gl.toneMappingExposure = 1.08;
+    gl.debug.checkShaderErrors = true;
+    gl.debug.onShaderError = (context, program, vertexShader, fragmentShader) => {
+      console.error(
+        "Tissue shader failed to compile on this GPU; switching to plain materials.",
+        context.getShaderInfoLog(vertexShader),
+        context.getShaderInfoLog(fragmentShader),
+        context.getProgramInfoLog(program),
+      );
+      setPlainMaterials(true);
+    };
+    gl.domElement.addEventListener("webglcontextlost", (event) => {
+      event.preventDefault();
+      setContextLost(true);
+    });
   };
+
+  const restartStage = () => {
+    setContextLost(false);
+    setRestartCount((value) => value + 1);
+  };
+
+  if (contextLost) {
+    return (
+      <StageNotice
+        title={props.contextLostTitle}
+        detail={props.contextLostDetail}
+        action={props.contextLostAction}
+        onAction={restartStage}
+      />
+    );
+  }
 
   return (
     <Canvas
-      key={`anatomy-viewer-${props.resetSignal}`}
+      key={`anatomy-viewer-${props.resetSignal}-${restartCount}-${plainMaterials ? "plain" : "tissue"}`}
       camera={{ position: [0, 0.08, 4.25], fov: 34, near: 0.1, far: 40 }}
       dpr={[1, 1.5]}
       frameloop={props.autoRotate ? "always" : "demand"}
@@ -871,7 +927,7 @@ export function AnatomyViewer(props: AnatomyViewerProps) {
 
       <ModelErrorBoundary model={organ.model ?? organ.modelKind ?? organ.id} label={props.errorLabel}>
         <Suspense fallback={<LoadingModel label={props.loadingLabel} />}>
-          <RenderModel key={organ.id} {...props} organ={organ} />
+          <RenderModel key={organ.id} {...props} organ={organ} plainMaterials={plainMaterials} />
         </Suspense>
       </ModelErrorBoundary>
 
