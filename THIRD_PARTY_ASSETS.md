@@ -91,6 +91,16 @@ The intermediary repository is referenced only to disclose the origin of the gal
 - Checksums:
   - `stomach.glb`: `07ad4e3b12dec4628a3da4ecebf4e433c4f3767e5d5e6ec8c310dee37697ca1b`
   - `skeleton.glb`: `ac487533d9b848c234cd9462d233578a9b741c87d9a5aacdc3828700bff6f22b`
+- Further BodyParts3D exports, same method (name-selected parts, no geometry edits, slimmed):
+  - `oesophagus.glb`: oesophagus, epiglottis, and the three pairs of pharyngeal constrictors (8 parts); `389cfe041512b2c22b624baf99175d94f0cf7339ae383e788602f63630b5e1ba`
+  - `muscles.glb`: 397 skeletal muscle parts (cardiac papillary muscles excluded), simplified ratio 0.3; `1908ec264f3c09468535df0229988b32753a77512580d3b3633237722d32d194`
+  - `diaphragm.glb`: the diaphragm (1 part); `5cea915a5fae63c79bb2f67206c161264a33eb055afd768038d3c20d136fcf9b`
+  - `endocrine.glb`: pituitary gland, pineal body, both adrenal glands, both kidneys for position (6 parts); `c441efc6040933293a67c76e6b1686f6e683d0c8668dd042571c3dead012a194`
+  - `urinary_system.glb`: both kidneys, both ureters, urinary bladder, urethra (6 parts); `d301a864076d581e028b30d168118fbfce3bbe00de9e298a20ab0c4f14808d3e`
+  - `nose.glb`: septal and lateral nasal cartilages, inferior nasal conchae, nasal bones, vomer, ethmoid (9 parts); `33da9e6f9424a65d8b69b828dec88cd82d2138df31850edd3b78c0afbbce907d`
+  - `arteries.glb`: all 639 named arteries, simplified ratio 0.4; `4096d2cee79258c30cc873280dfe7abf99de6e4ba5983ca691685a8526a57859`
+  - `veins.glb`: all 404 named veins, simplified ratio 0.4; `6f2b2eac76fdbc6aecc05663beafd89b966070479d9bc236cb5bc4dfb5edc61b`
+  - `testis.glb`: testes, epididymides, deferent ducts, seminal vesicles, prostate (9 parts; no external anatomy); `abb1ada88eb614dd9d59d6f9ef170bfdc5912e875126861392d651df2b2010bd`
 - Citation: Mitsuhashi N. et al. (2009) BodyParts3D: 3D structure database for anatomical concepts. Nucleic Acids Research 37: D782–D785. https://doi.org/10.1093/nar/gkn613
 
 Attribution displayed inside the application:
