@@ -10,7 +10,7 @@ The source code of the Human Atlas Organ Studio is a clean-room implementation. 
 - Source: Visible Human Male reference objects downloaded from `https://cdn.humanatlas.io/digital-objects/ref-organ/<organ>/<version>/assets/` as listed by `https://apps.humanatlas.io/api/v1/reference-organs` on 2026-09-06. The brain is the Allen Human Brain Atlas reference object and the lymph node is the NIH (Yao) reference object distributed by the same library.
 - Scope: left-sided objects are used where the library ships paired organs (eye, kidney, ureter, palatine tonsil, knee). The prostate object includes the seminal vesicle, vas deferens, and ejaculatory duct and no external anatomy. The full-body skin object is deliberately not used; the skin view is a local procedural cross section.
 - Local modifications (`scripts/slim-model.mjs`, glTF Transform 4.5 and meshoptimizer): unused vertex attributes (tangents, texture coordinates, vertex colours, and the original normals) were removed, vertices welded, large meshes simplified to a target triangle ratio, positions quantised to 14 bits, and the result compressed with `EXT_meshopt_compression`. Every named node from the source file is preserved so each anatomical structure remains individually selectable. No geometry was added or reshaped. Smooth normals are recomputed by the viewer at load time.
-- The gallbladder object is not published individually by the reference-organ API. The Meshopt-compressed `gallbladder.glb` from the `tejasghalsasi/anatomy-atelier` intermediary (commit `1da776126a81dd803fd12d22e6723522db3bb3b5`, retrieved 2026-08-04) is retained unchanged.
+- The gallbladder object is not published individually by the reference-organ API. The Meshopt-compressed `gallbladder.glb` retained from the project's original 2026-08-04 import (an intermediary redistribution of the HRA v1.2 object) is kept unchanged.
 
 | File | HRA object | Version | Size | SHA-256 (prefix) |
 |------|------------|---------|------|------------------|
@@ -78,7 +78,7 @@ Attribution displayed inside the application:
 
 > HRA 3D organ models © Human Reference Atlas (CC BY 4.0), HuBMAP.
 
-The intermediary repository is referenced only to disclose the origin of the gallbladder file. No source code from that repository is included.
+No third-party source code is included.
 
 ## BodyParts3D models (stomach and skeleton)
 
