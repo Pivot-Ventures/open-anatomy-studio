@@ -2231,7 +2231,7 @@ html[data-theme="light"] .viewer-panel {
 
 .ai-reference {
   padding: 15px 0;
-  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
 }
 
 .ai-reference-heading {
