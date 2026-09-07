@@ -203,3 +203,14 @@ test("static export config and EASI build script exist", async () => {
   assert.match(pkg, /"build:easi"/);
   assert.match(script, /\/atlas\/organs/);
 });
+
+test("catalogue-json emits every organ with its terms", async () => {
+  const { catalogue } = await import("../scripts/catalogue-json.mjs");
+  const organs = catalogue();
+  assert.equal(organs.length, organIds.length);
+  assert.deepEqual(organs.map((o) => o.organId), organIds);
+  for (const organ of organs) {
+    assert.ok(organ.name && organ.summary, organ.organId);
+    assert.ok(organ.terms.length >= 4, organ.organId);
+  }
+});
