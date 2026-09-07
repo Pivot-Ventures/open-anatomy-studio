@@ -240,6 +240,50 @@ const rules: Rule[] = [
   { match: /apex of prostate/, meaning: "The lower tip of the prostate resting on the pelvic floor.", tissue: "gland" },
   { match: /base of prostate/, meaning: "The upper surface of the prostate against the bladder neck.", tissue: "gland" },
 
+  // Whole skeleton (BodyParts3D)
+  { match: /^atlas$/, meaning: "The first cervical vertebra, which carries the skull and lets you nod.", tissue: "bone" },
+  { match: /^axis$/, meaning: "The second cervical vertebra, whose peg lets the head turn side to side.", tissue: "bone" },
+  { match: /cervical vertebra/, meaning: "One of the seven neck vertebrae.", tissue: "bone" },
+  { match: /thoracic vertebra/, meaning: "One of the twelve chest vertebrae that carry the ribs.", tissue: "bone" },
+  { match: /lumbar vertebra/, meaning: "One of the five large lower-back vertebrae that carry most of the body's weight.", tissue: "bone" },
+  { match: /\brib\b/, meaning: "One of twelve pairs of curved bones that protect the heart and lungs and move with breathing.", tissue: "bone" },
+  { match: /manubrium/, meaning: "The top part of the breastbone, where the collarbones attach.", tissue: "bone" },
+  { match: /body of sternum/, meaning: "The long middle part of the breastbone.", tissue: "bone" },
+  { match: /xiphoid/, meaning: "The small pointed tip at the bottom of the breastbone.", tissue: "cartilage" },
+  { match: /clavicle/, meaning: "The collarbone, which braces the shoulder against the breastbone.", tissue: "bone" },
+  { match: /scapula/, meaning: "The shoulder blade.", tissue: "bone" },
+  { match: /humerus/, meaning: "The upper arm bone.", tissue: "bone" },
+  { match: /\bradius\b/, meaning: "The forearm bone on the thumb side.", tissue: "bone" },
+  { match: /\bulna\b/, meaning: "The forearm bone on the little-finger side, forming the point of the elbow.", tissue: "bone" },
+  { match: /scaphoid|lunate|triquetr|pisiform|trapezium|trapezoid|capitate|hamate/, meaning: "One of the eight small carpal bones of the wrist.", tissue: "bone" },
+  { match: /metacarpal/, meaning: "One of the five bones of the palm.", tissue: "bone" },
+  { match: /phalanx.*(finger|thumb)/, meaning: "A finger bone; each finger has three and the thumb two.", tissue: "bone" },
+  { match: /phalanx.*toe/, meaning: "A toe bone; each toe has three and the big toe two.", tissue: "bone" },
+  { match: /hip bone/, meaning: "The fused ilium, ischium, and pubis forming one side of the pelvis.", tissue: "bone" },
+  { match: /talus/, meaning: "The ankle bone that sits between the shin and the heel.", tissue: "bone" },
+  { match: /calcaneus/, meaning: "The heel bone, the largest bone of the foot.", tissue: "bone" },
+  { match: /navicular|cuboid|cuneiform/, meaning: "One of the small tarsal bones of the midfoot.", tissue: "bone" },
+  { match: /metatarsal/, meaning: "One of the five long bones of the foot.", tissue: "bone" },
+  { match: /sesamoid/, meaning: "A small bone embedded in a tendon, like a pulley.", tissue: "bone" },
+  { match: /frontal bone/, meaning: "The forehead bone and roof of the eye sockets.", tissue: "bone" },
+  { match: /parietal bone/, meaning: "One of the two bones forming the sides and roof of the skull.", tissue: "bone" },
+  { match: /temporal bone/, meaning: "The bone at the side of the skull that houses the ear.", tissue: "bone" },
+  { match: /occipital bone/, meaning: "The bone at the back and base of the skull, with the opening for the spinal cord.", tissue: "bone" },
+  { match: /sphenoid/, meaning: "The butterfly-shaped bone at the base of the skull that holds the pituitary gland.", tissue: "bone" },
+  { match: /ethmoid/, meaning: "The light spongy bone between the eye sockets and nasal cavity.", tissue: "bone" },
+  { match: /zygomatic/, meaning: "The cheekbone.", tissue: "bone" },
+  { match: /maxilla/, meaning: "The upper jaw, which holds the upper teeth.", tissue: "bone" },
+  { match: /nasal bone/, meaning: "One of the two small bones forming the bridge of the nose.", tissue: "bone" },
+  { match: /lacrimal bone/, meaning: "The tiny bone at the inner corner of the eye socket.", tissue: "bone" },
+  { match: /vomer/, meaning: "The thin bone that forms the lower part of the nasal septum.", tissue: "bone" },
+  { match: /palatine bone/, meaning: "The bone forming the back of the hard palate.", tissue: "bone" },
+  { match: /nasal concha/, meaning: "A curled bone inside the nose that warms and moistens air.", tissue: "bone" },
+  { match: /hyoid/, meaning: "The U-shaped bone in the neck that anchors the tongue; the only bone not joined to another.", tissue: "bone" },
+
+  // Stomach (BodyParts3D)
+  { match: /^stomach$/, meaning: "The muscular bag that stores food and mixes it with acid and pepsin.", tissue: "mucosa" },
+  { match: /esophagus|oesophagus/, meaning: "The muscular tube that carries swallowed food to the stomach.", tissue: "mucosa" },
+
   // Skeleton
   { match: /compact bone/, meaning: "The dense outer shell of a bone.", tissue: "bone" },
   { match: /spongy bone/, meaning: "The light honeycomb bone inside that holds marrow.", tissue: "bone" },
@@ -285,7 +329,7 @@ const abbreviations: Record<string, string> = {
 /** Normalise a model identifier into lower-case words. */
 export function normaliseStructureName(name: string) {
   return name
-    .replace(/^(Allen|Yao|VIS|VHM|VHF|VH)[_-]*(M|F)?[_-]*/i, "")
+    .replace(/^(Allen|Yao|VIS|VHM|VHF|VH|BP3D)[_-]*(M|F)?[_-]*/i, "")
     .replace(/FBXASC032/g, " ")
     .replace(/[_-]+/g, " ")
     .replace(/\s+/g, " ")

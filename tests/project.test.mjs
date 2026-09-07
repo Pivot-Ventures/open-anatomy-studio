@@ -14,6 +14,7 @@ const organIds = [
   "trachea",
   "bronchi",
   "mouth",
+  "stomach",
   "liver",
   "gallbladder",
   "pancreas",
@@ -27,6 +28,7 @@ const organIds = [
   "ureter",
   "bladder",
   "prostate",
+  "skeleton",
   "pelvis",
   "knee",
   "intervertebral_disk",
@@ -47,7 +49,7 @@ test("ships the complete attributed model set", async () => {
     }),
   );
 
-  assert.equal(sizes.length, 26);
+  assert.equal(sizes.length, 28);
   assert.ok(sizes.every((size) => size > 8_000), "every model should contain GLB data");
   assert.ok(sizes.every((size) => size < 2 * 1024 * 1024), "each model should stay under 2 MiB so school connections can load it");
   await assert.rejects(access(new URL("public/models/skin.glb", root)));
