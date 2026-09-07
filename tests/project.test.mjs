@@ -6,28 +6,37 @@ const root = new URL("../", import.meta.url);
 const organIds = [
   "heart",
   "vasculature",
+  "arteries",
+  "veins",
   "brain",
   "spinal_cord",
   "eye",
   "lungs",
+  "nose",
   "larynx",
   "trachea",
   "bronchi",
+  "diaphragm",
   "mouth",
+  "oesophagus",
   "stomach",
   "liver",
   "gallbladder",
   "pancreas",
+  "endocrine",
   "small_intestine",
   "intestine",
   "spleen",
   "thymus",
   "lymph_node",
   "tonsil",
+  "urinary_system",
   "kidney",
   "ureter",
   "bladder",
   "prostate",
+  "testis",
+  "muscles",
   "skeleton",
   "pelvis",
   "knee",
@@ -49,7 +58,7 @@ test("ships the complete attributed model set", async () => {
     }),
   );
 
-  assert.equal(sizes.length, 28);
+  assert.equal(sizes.length, 37);
   assert.ok(sizes.every((size) => size > 8_000), "every model should contain GLB data");
   assert.ok(sizes.every((size) => size < 2 * 1024 * 1024), "each model should stay under 2 MiB so school connections can load it");
   await assert.rejects(access(new URL("public/models/skin.glb", root)));
