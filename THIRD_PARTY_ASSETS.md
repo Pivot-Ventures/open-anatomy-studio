@@ -80,6 +80,23 @@ Attribution displayed inside the application:
 
 The intermediary repository is referenced only to disclose the origin of the gallbladder file. No source code from that repository is included.
 
+## BodyParts3D models (stomach and skeleton)
+
+- Upstream project: [BodyParts3D 4.0](https://dbarchive.biosciencedbc.jp/en/bodyparts3d/download.html), Database Center for Life Science (DBCLS)
+- Licence: [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/) per the current database licence page (https://dbarchive.biosciencedbc.jp/en/bodyparts3d/lic.html); older OBJ comments mention CC BY-SA 2.1 Japan, which the current licence supersedes.
+- Source: the Pivot-Ventures/human-atlas body tab's packed BodyParts3D chunks (`atlas.json` + `body-*.bin`, themselves simplified with a 0.2% error bound from `isa_BP3D_4.0_obj_99.zip`). The exporter (`export-bp3d.py` in the working notes) copies the selected named parts into a GLB without editing geometry, then `scripts/slim-model.mjs` welds, simplifies (skeleton only, ratio 0.6), quantises, and meshopt-compresses.
+- `stomach.glb`: parts FJ2563 Esophagus, FJ2564 Stomach, FJ2573 Duodenum (3 nodes, 3,660 triangles).
+- `skeleton.glb`: 206 bone parts selected by name (vertebrae including atlas and axis, ribs, sternum, skull bones, hyoid, girdles, limb bones, carpals, metacarpals, phalanges, tarsals, metatarsals, sesamoids); teeth, cartilage, and ligaments excluded.
+- Node names carry a `BP3D_` prefix and the FMA concept id in `extras.fma`.
+- Checksums:
+  - `stomach.glb`: `07ad4e3b12dec4628a3da4ecebf4e433c4f3767e5d5e6ec8c310dee37697ca1b`
+  - `skeleton.glb`: `ac487533d9b848c234cd9462d233578a9b741c87d9a5aacdc3828700bff6f22b`
+- Citation: Mitsuhashi N. et al. (2009) BodyParts3D: 3D structure database for anatomical concepts. Nucleic Acids Research 37: D782–D785. https://doi.org/10.1093/nar/gkn613
+
+Attribution displayed inside the application:
+
+> Stomach and skeleton © BodyParts3D, DBCLS (CC BY 4.0).
+
 ## Local procedural skin cross section
 
 The skin view is generated at runtime from project-owned Three.js geometry and materials. It presents a local educational cross section with epidermis, dermis, subcutaneous tissue, a hair follicle, a sweat gland, and simplified dermal vessels. It does not use a scanned body, whole-person geometry, or an external binary model.

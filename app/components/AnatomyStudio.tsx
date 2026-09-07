@@ -702,7 +702,7 @@ export function AnatomyStudio() {
           <div className="info-status">
             <span style={{ background: activeOrgan.accent }} aria-hidden="true" />
             {systems[activeOrgan.system]}
-            <small>{activeOrgan.modelSource === "local" ? ui.localModel : "HRA · CC BY 4.0"}</small>
+            <small>{activeOrgan.modelSource === "local" ? ui.localModel : activeOrgan.modelSource === "bp3d" ? "BodyParts3D · CC BY 4.0" : "HRA · CC BY 4.0"}</small>
           </div>
 
           <section className="ai-reference" aria-labelledby="ai-reference-title">

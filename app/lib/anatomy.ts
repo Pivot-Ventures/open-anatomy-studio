@@ -68,7 +68,7 @@ export type Organ = {
   system: BodySystem;
   model?: string;
   modelKind?: "gltf" | "skin-patch";
-  modelSource?: "hra" | "local";
+  modelSource?: "hra" | "bp3d" | "local";
   /** Default tissue appearance for meshes that no material rule matches. */
   tissue: TissueKind;
   accent: string;
@@ -97,6 +97,7 @@ export const systems: Record<BodySystem, string> = {
 };
 
 const hra = (file: string) => `models/${file}.glb`;
+const bp3d = hra;
 
 export const organs: Organ[] = [
   {
@@ -541,6 +542,52 @@ export const organs: Organ[] = [
       options: ["Protein", "Fat", "Starch", "Vitamins"],
       answer: 2,
       explanation: "Amylase breaks starch into shorter sugar chains, which is why bread tastes sweet if chewed for long.",
+    },
+  },
+  {
+    id: "stomach",
+    name: "Stomach",
+    latin: "Gaster",
+    system: "digestive",
+    model: bp3d("stomach"),
+    modelSource: "bp3d",
+    tissue: "mucosa",
+    accent: "#e08a6a",
+    summary:
+      "A J-shaped muscular bag between the oesophagus and the duodenum that stores food, churns it with acid and enzymes, and releases the resulting chyme in small portions into the small intestine.",
+    role: "Stores and mixes food and begins protein digestion.",
+    modelScope: "The model shows the stomach with the lower oesophagus above it and the duodenum leaving it, from the BodyParts3D reference body.",
+    facts: [
+      { label: "Capacity", value: "About 1 to 1.5 litres when full, much less when empty", sourceIds: ["openstax"], reviewStatus: "draft" },
+      { label: "Location", value: "Left upper abdomen, under the diaphragm" },
+      { label: "Regions", value: "Cardia, fundus, body, and pylorus" },
+      { label: "Acid", value: "Gastric juice is about pH 1.5 to 3.5" },
+    ],
+    functions: [
+      "Muscular churning mixes food into chyme",
+      "Hydrochloric acid kills microbes and activates pepsin, which begins protein digestion",
+      "The pyloric sphincter releases chyme into the duodenum a little at a time",
+    ],
+    terms: [
+      { term: "Cardia", meaning: "The opening where the oesophagus joins the stomach." },
+      { term: "Fundus", meaning: "The dome-shaped top of the stomach that rises above the cardia." },
+      { term: "Body", meaning: "The large central part of the stomach." },
+      { term: "Pylorus", meaning: "The narrow lower end that leads into the duodenum." },
+      { term: "Sphincter", meaning: "A ring of muscle that closes an opening, such as the pyloric sphincter." },
+      { term: "Rugae", meaning: "The folds of the stomach lining that flatten as it fills." },
+      { term: "Chyme", meaning: "The semi-liquid mixture of food and gastric juice." },
+      { term: "Pepsin", meaning: "The enzyme that begins breaking proteins into smaller pieces." },
+    ],
+    hotspots: [
+      { id: "stomach", name: "Stomach", detail: "The J-shaped bag where food is stored and churned with gastric juice.", mesh: "BP3D_Stomach" },
+      { id: "oesophagus", name: "Oesophagus", detail: "The muscular tube that carries swallowed food down to the cardia.", mesh: "BP3D_Esophagus" },
+      { id: "duodenum", name: "Duodenum", detail: "The first part of the small intestine, which receives chyme through the pylorus.", mesh: "BP3D_Duodenum" },
+    ],
+    quiz: {
+      question: "Which enzyme begins protein digestion in the stomach?",
+      options: ["Amylase", "Lipase", "Pepsin", "Bile"],
+      answer: 2,
+      explanation: "Pepsin, activated by hydrochloric acid, starts breaking proteins into smaller peptides.",
     },
   },
   {
@@ -1110,6 +1157,55 @@ export const organs: Organ[] = [
     },
   },
   {
+    id: "skeleton",
+    name: "Skeleton",
+    latin: "Systema skeletale",
+    system: "skeletal",
+    model: bp3d("skeleton"),
+    modelSource: "bp3d",
+    tissue: "bone",
+    accent: "#e9e0c9",
+    summary:
+      "The full adult skeleton of 206 bones: the axial skeleton of skull, vertebral column, and rib cage, and the appendicular skeleton of the limbs and the girdles that attach them.",
+    role: "Supports the body, protects the organs, anchors the muscles, and makes blood cells in its marrow.",
+    modelScope: "The model shows the individually named bones of the BodyParts3D reference body. Teeth, cartilage, and ligaments are not included.",
+    facts: [
+      { label: "Bones", value: "206 in an adult; a newborn has about 270 that later fuse", sourceIds: ["openstax"], reviewStatus: "draft" },
+      { label: "Longest bone", value: "The femur, about a quarter of standing height" },
+      { label: "Smallest bone", value: "The stapes in the middle ear, about 3 mm" },
+      { label: "Divisions", value: "Axial skeleton (80 bones) and appendicular skeleton (126 bones)" },
+    ],
+    functions: [
+      "Provides a rigid framework that supports the body against gravity",
+      "Protects the brain, spinal cord, heart, and lungs",
+      "Works with muscles as levers to produce movement, stores calcium, and makes blood cells in red marrow",
+    ],
+    terms: [
+      { term: "Axial skeleton", meaning: "The skull, vertebral column, and rib cage along the body's central axis." },
+      { term: "Appendicular skeleton", meaning: "The bones of the arms, legs, shoulders, and hips." },
+      { term: "Vertebra", meaning: "One of the 33 bones of the spine." },
+      { term: "Cranium", meaning: "The part of the skull that encloses the brain." },
+      { term: "Girdle", meaning: "A ring of bones that attaches a limb to the trunk: the pectoral and pelvic girdles." },
+      { term: "Long bone", meaning: "A bone longer than it is wide, such as the femur or humerus." },
+      { term: "Joint", meaning: "Where two bones meet." },
+      { term: "Marrow", meaning: "The soft tissue inside bones where blood cells are made." },
+    ],
+    hotspots: [
+      { id: "skull", name: "Frontal bone", detail: "Forms the forehead and the roof of the eye sockets; one of the eight cranial bones.", mesh: "BP3D_Frontal_bone" },
+      { id: "sternum", name: "Sternum", detail: "The breastbone at the front of the rib cage, where most ribs attach through cartilage.", mesh: "BP3D_Body_of_sternum" },
+      { id: "humerus", name: "Humerus", detail: "The upper arm bone, from shoulder to elbow.", mesh: "BP3D_humerus_L" },
+      { id: "lumbar", name: "Fifth lumbar vertebra", detail: "The largest vertebra, carrying the weight of the upper body onto the sacrum.", mesh: "BP3D_Fifth_lumbar_vertebra" },
+      { id: "hip", name: "Hip bone", detail: "The fused ilium, ischium, and pubis that form each side of the pelvis.", mesh: "BP3D_hip_bone_L" },
+      { id: "femur", name: "Femur", detail: "The thigh bone, the longest and strongest bone in the body.", mesh: "BP3D_femur_L" },
+    ],
+    quiz: {
+      question: "How many bones does an adult human skeleton have?",
+      options: ["106", "206", "306", "406"],
+      answer: 1,
+      explanation: "An adult has 206 bones; babies are born with more, which fuse as they grow.",
+    },
+  },
+  {
     id: "pelvis",
     name: "Bony pelvis",
     latin: "Pelvis ossea",
@@ -1295,7 +1391,8 @@ export const organs: Organ[] = [
 
 export const organById = Object.fromEntries(organs.map((organ) => [organ.id, organ])) as Record<string, Organ>;
 
-export const hraModelCount = organs.filter((organ) => organ.model).length;
+export const hraModelCount = organs.filter((organ) => organ.model && organ.modelSource !== "bp3d").length;
+export const bp3dModelCount = organs.filter((organ) => organ.modelSource === "bp3d").length;
 
 export const anatomySources = [
   {
@@ -1303,6 +1400,12 @@ export const anatomySources = [
     title: "Human Reference Atlas 3D Reference Object Library",
     detail: `Source of the ${hraModelCount} binary organ models. The objects are released under CC BY 4.0 and maintained by the HuBMAP Human Reference Atlas project.`,
     url: "https://humanatlas.io/3d-reference-library",
+  },
+  {
+    id: "bp3d",
+    title: "BodyParts3D 4.0",
+    detail: `Source of the ${bp3dModelCount} whole-body models (stomach and skeleton). Published by the Database Center for Life Science under CC BY 4.0 and shared with the Human Atlas body tab.`,
+    url: "https://dbarchive.biosciencedbc.jp/en/bodyparts3d/download.html",
   },
   {
     id: "openstax",
